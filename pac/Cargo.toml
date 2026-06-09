@@ -1,0 +1,20 @@
+[package]
+name = "rv32m1-riscv-pac"
+version = "0.1.0"
+edition = "2024"
+description = "Peripheral access API for RISC-V (RI5CY + ZERO-RISCY) cores of RV32M1 chips"
+license = "MIT"
+repository = "https://github.com/Curious-r/rv32m1-riscv"
+keywords = ["riscv", "embedded", "pac", "rv32m1", "vega"]
+categories = ["embedded", "hardware-support", "no-std"]
+
+[dependencies]
+critical-section = "1.0"
+vcell = "0.1"
+
+[features]
+rt = ["riscv-rt"]
+critical-section = []
+[dependencies.riscv-rt]
+version = "0.12"
+optional = true

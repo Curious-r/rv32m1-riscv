@@ -1,0 +1,39 @@
+#![no_std]
+
+pub use rv32m1_riscv_pac as pac;
+
+pub mod adc;
+pub mod crc;
+pub mod dma;
+pub mod emvsim;
+pub mod error;
+pub mod ewm;
+pub mod flexio;
+pub mod ftfe;
+pub mod gpio;
+pub mod i2s;
+pub mod lpi2c;
+pub mod lpcmp;
+pub mod lpdac;
+pub mod mua;
+pub mod lpit;
+pub mod lptmr;
+pub mod lpspi;
+pub mod llwu;
+pub mod lpuart;
+pub mod pcc;
+pub mod rtc;
+pub mod port;
+pub mod prelude;
+pub mod scg;
+pub mod sim;
+pub mod smc;
+pub mod spm;
+pub mod tpm;
+pub mod trgmux;
+pub mod tstmr;
+pub mod usb;
+pub mod usbvreg;
+pub mod usdhc;
+pub mod vref;
+pub mod wdog;
