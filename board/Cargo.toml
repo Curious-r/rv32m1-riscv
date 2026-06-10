@@ -2,11 +2,15 @@
 name = "rv32m1-riscv-board"
 version = "0.1.0"
 edition = "2024"
-description = "Board support package for VEGA/VEGA-Lite RV32M1 boards"
+description = "Board support packages for RV32M1-based boards"
 license = "MIT"
 repository = "https://github.com/Curious-r/rv32m1-riscv"
 keywords = ["riscv", "embedded", "board", "rv32m1", "vega"]
 categories = ["embedded", "hardware-support", "no-std"]
+
+[features]
+default = ["vega"]
+vega = []
 
 [dependencies]
 rv32m1-riscv-pac = { path = "../pac", version = "0.1.0" }
