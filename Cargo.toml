@@ -9,7 +9,7 @@ members = [
 
 [package]
 name = "rv32m1-riscv"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Rust embedded ecosystem for RISC-V cores (RI5CY + ZERO-RISCY) of RV32M1 SoC"
 license = "MIT"
@@ -18,7 +18,7 @@ keywords = ["riscv", "embedded", "hal", "rv32m1", "vega"]
 categories = ["embedded", "hardware-support", "no-std"]
 
 [dependencies]
-rv32m1-riscv-chip = { path = "chip", version = "0.1.0" }
-rv32m1-riscv-pac = { path = "pac", version = "0.1.0" }
-rv32m1-riscv-hal = { path = "hal", version = "0.1.0" }
-rv32m1-riscv-board = { path = "board", version = "0.1.0" }
+rv32m1-riscv-chip = { path = "chip", version = "0.1.1" }
+rv32m1-riscv-pac = { path = "pac", version = "0.1.1" }
+rv32m1-riscv-hal = { path = "hal", version = "0.1.1" }
+rv32m1-riscv-board = { path = "board", version = "0.1.1" }

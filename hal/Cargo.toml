@@ -1,6 +1,6 @@
 [package]
 name = "rv32m1-riscv-hal"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "HAL for RISC-V (RI5CY + ZERO-RISCY) cores of RV32M1 chips"
 license = "MIT"
@@ -9,6 +9,6 @@ keywords = ["riscv", "embedded", "hal", "rv32m1", "vega"]
 categories = ["embedded", "hardware-support", "no-std"]
 
 [dependencies]
-rv32m1-riscv-pac = { path = "../pac", version = "0.1.0" }
+rv32m1-riscv-pac = { path = "../pac", version = "0.1.1" }
 embedded-hal = "1.0"
 riscv = "0.12"

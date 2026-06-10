@@ -1,6 +1,6 @@
 [package]
 name = "rv32m1-riscv-board"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Board support packages for RV32M1-based boards"
 license = "MIT"
@@ -14,7 +14,7 @@ vega = []
 rt = ["rv32m1-riscv-chip/rt", "rv32m1-riscv-pac/rt"]
 
 [dependencies]
-rv32m1-riscv-chip = { path = "../chip", version = "0.1.0" }
-rv32m1-riscv-pac = { path = "../pac", version = "0.1.0" }
-rv32m1-riscv-hal = { path = "../hal", version = "0.1.0" }
+rv32m1-riscv-chip = { path = "../chip", version = "0.1.1" }
+rv32m1-riscv-pac = { path = "../pac", version = "0.1.1" }
+rv32m1-riscv-hal = { path = "../hal", version = "0.1.1" }
 embedded-hal = "1.0"
