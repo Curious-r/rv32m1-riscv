@@ -40,3 +40,44 @@ pub fn enable_lpuart_clock(pcc: &pac::Pcc0, instance: u8) {
         _ => {}
     }
 }
+
+pub fn enable_tpm_clock(pcc: &pac::Pcc0, instance: u8) {
+    match instance {
+        0 => { pcc.pcc_tpm0().write(|w| w.cgc().cgc_1()); }
+        1 => { pcc.pcc_tpm1().write(|w| w.cgc().cgc_1()); }
+        2 => { pcc.pcc_tpm2().write(|w| w.cgc().cgc_1()); }
+        _ => {}
+    }
+}
+
+pub fn enable_porte_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_porte().write(|w| w.cgc().cgc_1());
+}
+
+pub fn enable_cau3_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_cau3().write(|w| w.cgc().cgc_1());
+}
+
+pub fn enable_trng_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_trng().write(|w| w.cgc().cgc_1());
+}
+
+pub fn enable_lpit1_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_lpit1().write(|w| w.cgc().cgc_1());
+}
+
+pub fn enable_tpm3_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_tpm3().write(|w| w.cgc().cgc_1());
+}
+
+pub fn enable_lpi2c3_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_lpi2c3().write(|w| w.cgc().cgc_1());
+}
+
+pub fn enable_lpspi3_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_lpspi3().write(|w| w.cgc().cgc_1());
+}
+
+pub fn enable_lpuart3_clock(pcc: &pac::Pcc1) {
+    pcc.pcc_lpuart3().write(|w| w.cgc().cgc_1());
+}
