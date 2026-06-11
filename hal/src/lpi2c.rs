@@ -26,36 +26,81 @@ impl I2cError for Error {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct I2cConfig {
+    pub frequency: u32,
+    pub glitch_filter_scl: u8,
+    pub glitch_filter_sda: u8,
+    pub high_drive: bool,
+    pub ignore_nack: bool,
+    pub pin_config: u8,
+}
+
+impl Default for I2cConfig {
+    fn default() -> Self {
+        Self {
+            frequency: 100_000,
+            glitch_filter_scl: 0,
+            glitch_filter_sda: 0,
+            high_drive: false,
+            ignore_nack: false,
+            pin_config: 0,
+        }
+    }
+}
+
 pub struct Lpi2c {
     regs: &'static pac::lpi2c0::RegisterBlock,
 }
 
 impl Lpi2c {
     pub fn new(_regs: pac::Lpi2c0, pcc0: &pac::Pcc0, frequency: u32) -> Self {
-        pcc::enable_lpi2c_clock(pcc0, 0);
-        let regs = unsafe { &*(pac::Lpi2c0::ptr() as *const pac::lpi2c0::RegisterBlock) };
-        Self::init(regs, frequency)
+        let config = I2cConfig { frequency, ..Default::default() };
+        Self::_new(pcc0, 0, config)
+    }
+
+    pub fn new_with_config(_regs: pac::Lpi2c0, pcc0: &pac::Pcc0, config: I2cConfig) -> Self {
+        Self::_new(pcc0, 0, config)
     }
 
     pub fn new_lpi2c1(_regs: pac::Lpi2c1, pcc0: &pac::Pcc0, frequency: u32) -> Self {
-        pcc::enable_lpi2c_clock(pcc0, 1);
-        let regs = unsafe { &*(pac::Lpi2c1::ptr() as *const pac::lpi2c0::RegisterBlock) };
-        Self::init(regs, frequency)
+        let config = I2cConfig { frequency, ..Default::default() };
+        Self::_new(pcc0, 1, config)
     }
 
     pub fn new_lpi2c2(_regs: pac::Lpi2c2, pcc0: &pac::Pcc0, frequency: u32) -> Self {
-        pcc::enable_lpi2c_clock(pcc0, 2);
-        let regs = unsafe { &*(pac::Lpi2c2::ptr() as *const pac::lpi2c0::RegisterBlock) };
-        Self::init(regs, frequency)
+        let config = I2cConfig { frequency, ..Default::default() };
+        Self::_new(pcc0, 2, config)
     }
 
     pub fn new_lpi2c3(_regs: pac::Lpi2c3, pcc1: &pac::Pcc1, frequency: u32) -> Self {
-        pcc::enable_lpi2c3_clock(pcc1);
-        let regs = unsafe { &*(pac::Lpi2c3::ptr() as *const pac::lpi2c0::RegisterBlock) };
-        Self::init(regs, frequency)
+        let config = I2cConfig { frequency, ..Default::default() };
+        Self::_new_with_pcc(pcc1, 3, config)
     }
 
-    fn init(regs: &'static pac::lpi2c0::RegisterBlock, frequency: u32) -> Self {
+    pub fn new_lpi2c3_with_config(_regs: pac::Lpi2c3, pcc1: &pac::Pcc1, config: I2cConfig) -> Self {
+        Self::_new_with_pcc(pcc1, 3, config)
+    }
+
+    fn _new(pcc0: &pac::Pcc0, instance: u8, config: I2cConfig) -> Self {
+        pcc::enable_lpi2c_clock(pcc0, instance);
+        let regs = unsafe {
+            &*match instance {
+                0 => pac::Lpi2c0::ptr() as *const pac::lpi2c0::RegisterBlock,
+                1 => pac::Lpi2c1::ptr() as *const pac::lpi2c0::RegisterBlock,
+                _ => pac::Lpi2c2::ptr() as *const pac::lpi2c0::RegisterBlock,
+            }
+        };
+        Self::init(regs, config)
+    }
+
+    fn _new_with_pcc(pcc1: &pac::Pcc1, _instance: u8, config: I2cConfig) -> Self {
+        pcc::enable_lpi2c3_clock(pcc1);
+        let regs = unsafe { &*(pac::Lpi2c3::ptr() as *const pac::lpi2c0::RegisterBlock) };
+        Self::init(regs, config)
+    }
+
+    fn init(regs: &'static pac::lpi2c0::RegisterBlock, config: I2cConfig) -> Self {
         regs.mcr().write(|w| w.rst().rst_1().men().men_0());
         while regs.mcr().read().rst().is_rst_1() {}
         regs.mcr().write(|w| w.rst().rst_0());
@@ -63,9 +108,9 @@ impl Lpi2c {
         regs.mcfgr0().write(|w| w.hren().hren_0());
 
         let clock_hz = scg::firc_div2_hz();
-        let (prescale, clklo, clkhi) = compute_timing(clock_hz, frequency);
+        let (prescale, clklo, clkhi) = compute_timing(clock_hz, config.frequency);
 
-        regs.mcfgr1().write(|w| {
+        regs.mcfgr1().write(|w| unsafe {
             w.prescale().variant(match prescale {
                 0 => pac::lpi2c0::mcfgr1::Prescale::Prescale0,
                 1 => pac::lpi2c0::mcfgr1::Prescale::Prescale1,
@@ -77,9 +122,9 @@ impl Lpi2c {
                 7 => pac::lpi2c0::mcfgr1::Prescale::Prescale7,
                 _ => unreachable!(),
             })
-            .pincfg().pincfg_0()
+            .pincfg().bits(config.pin_config)
             .autostop().autostop_0()
-            .ignack().ignack_0()
+            .ignack().bit(config.ignore_nack)
         });
 
         regs.mccr0().write(|w| unsafe {
@@ -98,8 +143,8 @@ impl Lpi2c {
 
         regs.mcfgr2().write(|w| unsafe {
             w.busidle().bits(0xFFF)
-                .filtscl().bits(0)
-                .filtsda().bits(0)
+                .filtscl().bits(config.glitch_filter_scl)
+                .filtsda().bits(config.glitch_filter_sda)
         });
 
         regs.mcfgr3().write(|w| unsafe { w.pinlow().bits(0) });
@@ -108,9 +153,52 @@ impl Lpi2c {
             w.txwater().bits(0).rxwater().bits(0)
         });
 
-        regs.mcr().modify(|_, w| w.men().men_1());
+        regs.mcr().modify(|_, w| {
+            w.men().men_1()
+                .dbgen().bit(config.high_drive)
+        });
 
         Self { regs }
+    }
+
+    pub fn enable_as_slave(&self, address: u8) {
+        self.regs.samr().write(|w| unsafe {
+            w.addr0().bits(address as u16)
+        });
+        self.regs.scfgr1().write(|w| {
+            w.saen().saen_1()
+                .rxcfg().rxcfg_1()
+                .ignack().ignack_0()
+        });
+        self.regs.scr().write(|w| {
+            w.rst().rst_1()
+                .filten().filten_0()
+                .sen().sen_0()
+        });
+        while self.regs.scr().read().rst().is_rst_1() {}
+        self.regs.scr().write(|w| {
+            w.rst().rst_0()
+                .filten().filten_0()
+                .sen().sen_1()
+        });
+        self.regs.mcr().modify(|_, w| w.men().men_0());
+    }
+
+    pub fn disable_slave(&self) {
+        self.regs.scr().modify(|_, w| w.sen().sen_0());
+        self.regs.mcr().modify(|_, w| w.men().men_1());
+    }
+
+    pub fn enable_interrupts(&self, mask: u32) {
+        self.regs.mier().write(|w| unsafe { w.bits(mask) });
+    }
+
+    pub fn get_interrupt_flags(&self) -> u32 {
+        self.regs.msr().read().bits() & 0x3F_FFFF
+    }
+
+    pub fn clear_interrupt_flags(&self, mask: u32) {
+        self.regs.msr().write(|w| unsafe { w.bits(mask) });
     }
 
     fn wait_tdf(&self) {
