@@ -10,6 +10,7 @@ pub mod axbs;
 pub mod cau3;
 pub mod crc;
 pub mod dma;
+pub mod dmamux;
 pub mod dual_core;
 pub mod emvsim;
 pub mod error;
