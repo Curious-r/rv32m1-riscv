@@ -63,7 +63,7 @@ impl Sim {
     }
 
     pub fn enable_systick_clock(&self, enable: bool) {
-        self.regs.misc2().modify(|_, w| w.systick_clk_en().bit(enable));
+        self.regs.misc2().modify(|_, w| w.systick_clk_en().bit(!enable));
     }
 
     pub fn set_flexbus_security(&self, level: u8) {

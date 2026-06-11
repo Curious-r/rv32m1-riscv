@@ -90,7 +90,7 @@ impl Dma {
 
     pub fn enable(&self) {
         let regs = self.regs;
-        regs.cr().modify(|_, w| w.edbg().bit(true).erca().bit(true));
+        regs.cr().modify(|_, w| w.edbg().bit(false).erca().bit(false).hoe().bit(true).emlm().bit(true));
     }
 
     pub fn enable_minor_loop_mapping(&self) {

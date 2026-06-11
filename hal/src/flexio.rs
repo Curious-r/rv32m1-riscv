@@ -124,7 +124,11 @@ impl Flexio {
 
     pub fn enable(&self) {
         let regs = self.regs;
-        regs.ctrl().write(|w| w.flexen().flexen_1());
+        regs.ctrl().write(|w| {
+            w.flexen().flexen_1()
+             .dbge().dbge_1()
+             .dozen().dozen_1()
+        });
     }
 
     pub fn disable(&self) {

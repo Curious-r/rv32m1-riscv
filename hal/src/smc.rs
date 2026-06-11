@@ -24,6 +24,23 @@ pub enum VllsLevel {
     All,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum StopMode {
+    Normal,
+    Vlps,
+    Lls,
+    Vlls23,
+    Vlls01,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum PartialStopOption {
+    Stop,
+    PStop1,
+    PStop2,
+    PStop3,
+}
+
 impl Smc {
     pub fn new() -> Self {
         Self {}
@@ -63,6 +80,16 @@ impl Smc {
         Self::write_pmctrl(regs, mode);
     }
 
+    pub fn set_stop_mode(&self, stop: StopMode, pstopo: PartialStopOption) {
+        let regs = unsafe { &*pac::Smc0::ptr() };
+        Self::write_stopm(regs, stop, pstopo);
+    }
+
+    pub fn set_stop_mode_smc1(stop: StopMode, pstopo: PartialStopOption) {
+        let regs = unsafe { &*(pac::Smc1::ptr() as *const pac::smc0::RegisterBlock) };
+        Self::write_stopm(regs, stop, pstopo);
+    }
+
     fn write_pmctrl(regs: &pac::smc0::RegisterBlock, mode: PowerMode) {
         let runm = match mode {
             PowerMode::Run => pac::smc0::pmctrl::Runm::Runm0,
@@ -72,6 +99,24 @@ impl Smc {
         };
         regs.pmctrl().modify(|_, w| w.runm().variant(runm));
         while regs.pmstat().read().pmstat().bits() != mode as u8 {}
+    }
+
+    fn write_stopm(regs: &pac::smc0::RegisterBlock, stop: StopMode, pstopo: PartialStopOption) {
+        regs.pmctrl().modify(|_, w| {
+            w.stopm().variant(match stop {
+                StopMode::Normal => pac::smc0::pmctrl::Stopm::Stopm0,
+                StopMode::Vlps => pac::smc0::pmctrl::Stopm::Stopm2,
+                StopMode::Lls => pac::smc0::pmctrl::Stopm::Stopm3,
+                StopMode::Vlls23 => pac::smc0::pmctrl::Stopm::Stopm4,
+                StopMode::Vlls01 => pac::smc0::pmctrl::Stopm::Stopm6,
+            });
+            w.pstopo().variant(match pstopo {
+                PartialStopOption::Stop => pac::smc0::pmctrl::Pstopo::Pstopo0,
+                PartialStopOption::PStop1 => pac::smc0::pmctrl::Pstopo::Pstopo1,
+                PartialStopOption::PStop2 => pac::smc0::pmctrl::Pstopo::Pstopo2,
+                PartialStopOption::PStop3 => pac::smc0::pmctrl::Pstopo::Pstopo3,
+            })
+        });
     }
 
     pub fn current_mode(&self) -> PowerMode {
