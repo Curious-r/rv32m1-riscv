@@ -73,4 +73,6 @@ cargo build -p rv32m1-riscv-board --features rt   # With interrupt vector table
 - ✅ **critical-section**: Custom RISC-V single-hart impl (MIE via csrrci/csrsi) — no external dependency
 - ✅ **Embedded HAL traits**: `DelayNs`, `SpiBus<u8>`, `I2c<u8>`, `serial::Read`/`Write`, `SetDutyCycle`, `StatefulOutputPin`
 - ✅ **Edition 2024**: PAC rt feature compiles with `unsafe extern "C"` and `#[unsafe(no_mangle)]`
-- ⬜ **AXBS, FB, MCM, MSCM, XRDC**: Drivers not yet implemented (33 remaining peripheral types)
+- ✅ **Dual-core coordination**: `DualCore` module wrapping MUA + MSCM + SEMA42 for inter-core IPC with semaphore synchronization
+- ✅ **AXBS, FB, MCM, MSCM, XRDC**: Configuration peripheral drivers added
+- ⬜ **33 remaining peripheral types**: Reserved/unused (no HAL driver planned)
