@@ -1,4 +1,5 @@
 use crate::pac::{self, tpm0};
+use embedded_hal::pwm::{ErrorType, SetDutyCycle};
 
 #[derive(Clone, Copy, Debug)]
 pub enum TpmInstance {
@@ -165,5 +166,39 @@ impl Tpm {
                 _ => unreachable!(),
             });
         }
+    }
+
+    pub fn in_pwm_mode(&self, channel: usize) -> bool {
+        let csc = self.regs.channel(channel).csc().read();
+        csc.msb().bit() && !csc.msa().bit()
+    }
+}
+
+pub struct TpmPwmPin<const CH: usize> {
+    regs: &'static tpm0::RegisterBlock,
+}
+
+impl<const CH: usize> TpmPwmPin<CH> {
+    pub fn new(tpm: &Tpm) -> Self {
+        Self { regs: tpm.regs }
+    }
+
+    fn period(&self) -> u16 {
+        self.regs.mod_().read().mod_().bits()
+    }
+}
+
+impl<const CH: usize> ErrorType for TpmPwmPin<CH> {
+    type Error = core::convert::Infallible;
+}
+
+impl<const CH: usize> SetDutyCycle for TpmPwmPin<CH> {
+    fn max_duty_cycle(&self) -> u16 {
+        self.period()
+    }
+
+    fn set_duty_cycle(&mut self, duty: u16) -> Result<(), Self::Error> {
+        self.regs.channel(CH).cv().write(|w| unsafe { w.val().bits(duty) });
+        Ok(())
     }
 }

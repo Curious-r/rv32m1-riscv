@@ -76,36 +76,41 @@ macro_rules! tcd_write {
     }};
 }
 
-pub struct Dma;
+pub struct Dma {
+    regs: &'static pac::dma0::RegisterBlock,
+    mux: &'static pac::dmamux0::RegisterBlock,
+}
 
 impl Dma {
     pub fn new() -> Self {
-        Self {}
+        let regs = unsafe { &*(pac::Dma0::ptr() as *const pac::dma0::RegisterBlock) };
+        let mux = unsafe { &*(pac::Dmamux0::ptr() as *const pac::dmamux0::RegisterBlock) };
+        Self { regs, mux }
     }
 
     pub fn enable(&self) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.cr().modify(|_, w| w.edbg().bit(true).erca().bit(true));
     }
 
     pub fn enable_minor_loop_mapping(&self) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.cr().modify(|_, w| w.emlm().bit(true));
     }
 
     pub fn disable(&self) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.cr().modify(|_, w| w.halt().bit(true));
     }
 
     pub fn set_channel_priority(&self, channel: u8, priority: u8) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.dchpri(channel as usize).write(|w| unsafe { w.chpri().bits(priority) });
     }
 
     pub fn configure_transfer(&self, channel: u8, config: &DmaTransferConfig) {
         let citer_val = config.major_iterations.saturating_sub(1) & 0x7FFF;
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         match channel {
             0 => tcd_write!(regs, config, citer_val, tcd0_saddr, tcd0_soff, tcd0_attr,
                 tcd_nbytes_tcd0_nbytes_mlno, tcd0_slast, tcd0_daddr, tcd0_doff,
@@ -176,7 +181,7 @@ impl Dma {
     }
 
     pub fn set_source(&self, channel: u8, dma_source: u8) {
-        let regs = unsafe { &*pac::Dmamux0::ptr() };
+        let regs = self.mux;
         regs.chcfg(channel as usize).write(|w| unsafe {
             w.source().bits(dma_source & 0x3F);
             w.trig().bit(false);
@@ -186,47 +191,47 @@ impl Dma {
     }
 
     pub fn enable_channel(&self, channel: u8) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.serq().write(|w| unsafe { w.serq().bits(channel).saer().bit(false).nop().nop_0() });
     }
 
     pub fn disable_channel(&self, channel: u8) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.cerq().write(|w| unsafe { w.cerq().bits(channel).caer().bit(false).nop().nop_0() });
     }
 
     pub fn start_transfer(&self, channel: u8) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.ssrt().write(|w| unsafe { w.ssrt().bits(channel).sast().bit(false).nop().nop_0() });
     }
 
     pub fn clear_done(&self, channel: u8) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.cdne().write(|w| unsafe { w.cdne().bits(channel).cadn().bit(false).nop().nop_0() });
     }
 
     pub fn clear_interrupt(&self, channel: u8) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.cint().write(|w| unsafe { w.cint().bits(channel).cair().bit(false).nop().nop_0() });
     }
 
     pub fn clear_error(&self, channel: u8) {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.cerr().write(|w| unsafe { w.cerr().bits(channel).caei().bit(false).nop().nop_0() });
     }
 
     pub fn interrupt_status(&self) -> u32 {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.int().read().bits()
     }
 
     pub fn error_status(&self) -> u32 {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.err().read().bits()
     }
 
     pub fn channel_done(&self, channel: u8) -> bool {
-        let regs = unsafe { &*pac::Dma0::ptr() };
+        let regs = self.regs;
         regs.int().read().bits() & (1 << channel) != 0
     }
 

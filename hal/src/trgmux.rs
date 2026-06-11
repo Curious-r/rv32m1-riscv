@@ -29,11 +29,14 @@ pub enum TrgReg {
     Lpcmp1,
 }
 
-pub struct Trgmux;
+pub struct Trgmux {
+    regs: &'static pac::trgmux0::RegisterBlock,
+}
 
 impl Trgmux {
     pub fn new() -> Self {
-        Self {}
+        let regs = unsafe { &*(pac::Trgmux0::ptr() as *const pac::trgmux0::RegisterBlock) };
+        Self { regs }
     }
 
     fn trg_reg_write(reg: &pac::trgmux0::RegisterBlock, reg_sel: TrgReg, sel0: u8, lock: bool) {
@@ -73,16 +76,18 @@ impl Trgmux {
     }
 
     pub fn set_sel0(&self, reg: TrgReg, source: u8) {
-        let r = unsafe { &*pac::Trgmux0::ptr() };
-        Self::trg_reg_write(r, reg, source, false);
+        Self::trg_reg_write(self.regs, reg, source, false);
     }
 
     pub fn read_sel0(&self, reg: TrgReg) -> u8 {
-        let r = unsafe { &*pac::Trgmux0::ptr() };
+        Self::trg_reg_read(self.regs, reg)
+    }
+
+    fn trg_reg_read(reg: &pac::trgmux0::RegisterBlock, reg_sel: TrgReg) -> u8 {
         macro_rules! r_sel0 {
-            ($f:ident) => { r.$f().read().sel0().bits() };
+            ($f:ident) => { reg.$f().read().sel0().bits() };
         }
-        match reg {
+        match reg_sel {
             TrgReg::Dmamux0 => r_sel0!(dmamux0),
             TrgReg::Dmamux1 => r_sel0!(dmamux1),
             TrgReg::Lpit0 => r_sel0!(lpit0),
@@ -112,16 +117,18 @@ impl Trgmux {
     }
 
     pub fn set_sel0_locked(&self, reg: TrgReg, source: u8) {
-        let r = unsafe { &*pac::Trgmux0::ptr() };
-        Self::trg_reg_write(r, reg, source, true);
+        Self::trg_reg_write(self.regs, reg, source, true);
     }
 
     pub fn is_locked(&self, reg: TrgReg) -> bool {
-        let r = unsafe { &*pac::Trgmux0::ptr() };
+        Self::trg_reg_is_locked(self.regs, reg)
+    }
+
+    fn trg_reg_is_locked(reg: &pac::trgmux0::RegisterBlock, reg_sel: TrgReg) -> bool {
         macro_rules! r_lk {
-            ($f:ident) => { r.$f().read().lk().is_locked() };
+            ($f:ident) => { reg.$f().read().lk().is_locked() };
         }
-        match reg {
+        match reg_sel {
             TrgReg::Dmamux0 => r_lk!(dmamux0),
             TrgReg::Dmamux1 => r_lk!(dmamux1),
             TrgReg::Lpit0 => r_lk!(lpit0),

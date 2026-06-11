@@ -39,15 +39,18 @@ pub enum SampleTime {
     T7,
 }
 
-pub struct Adc;
+pub struct Adc {
+    regs: &'static pac::adc0::RegisterBlock,
+}
 
 impl Adc {
     pub fn new() -> Self {
-        Self {}
+        let regs = unsafe { &*(pac::Adc0::ptr() as *const pac::adc0::RegisterBlock) };
+        Self { regs }
     }
 
     pub fn configure(&self, power: PowerLevel, vref: VoltageRef) {
-        let regs = unsafe { &*pac::Adc0::ptr() };
+        let regs = self.regs;
         regs.cfg().write(|w| unsafe {
             w.pwrsel().bits(match power {
                 PowerLevel::Level1 => 0,
@@ -65,17 +68,17 @@ impl Adc {
     }
 
     pub fn enable(&self) {
-        let regs = unsafe { &*pac::Adc0::ptr() };
+        let regs = self.regs;
         regs.ctrl().write(|w| w.adcen().adcen_1());
     }
 
     pub fn disable(&self) {
-        let regs = unsafe { &*pac::Adc0::ptr() };
+        let regs = self.regs;
         regs.ctrl().write(|w| w.adcen().adcen_0());
     }
 
     pub fn set_channel(&self, channel: u8) {
-        let regs = unsafe { &*pac::Adc0::ptr() };
+        let regs = self.regs;
         regs.cmdl1().write(|w| unsafe { w.adch().bits(channel).absel().absel_0() });
         regs.cmdh1().write(|w| unsafe {
             w.avgs().bits(0);
@@ -93,12 +96,12 @@ impl Adc {
     }
 
     pub fn trigger_conversion(&self) {
-        let regs = unsafe { &*pac::Adc0::ptr() };
+        let regs = self.regs;
         regs.swtrig().write(|w| w.swt0().swt0_1());
     }
 
     pub fn read_result(&self) -> u16 {
-        let regs = unsafe { &*pac::Adc0::ptr() };
+        let regs = self.regs;
         regs.resfifo().read().d().bits()
     }
 
@@ -106,7 +109,7 @@ impl Adc {
         self.enable();
         self.set_channel(channel);
         self.trigger_conversion();
-        let regs = unsafe { &*pac::Adc0::ptr() };
+        let regs = self.regs;
         for _ in 0..1000 {
             let val = regs.resfifo().read().d().bits();
             return val;

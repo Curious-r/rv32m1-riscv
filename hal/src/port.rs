@@ -1,20 +1,28 @@
-fn port_base(port: u8) -> usize {
+use crate::pac;
+
+pub enum Pull {
+    None,
+    Down,
+    Up,
+}
+
+fn port_regs(port: u8) -> Option<&'static pac::porta::RegisterBlock> {
     match port {
-        0 => 0x4004_6000,
-        1 => 0x4004_7000,
-        2 => 0x4004_8000,
-        3 => 0x4004_9000,
-        4 => 0x4103_7000,
-        _ => 0,
+        0 => Some(unsafe { &*(pac::Porta::ptr() as *const pac::porta::RegisterBlock) }),
+        1 => Some(unsafe { &*(pac::Portb::ptr() as *const pac::porta::RegisterBlock) }),
+        2 => Some(unsafe { &*(pac::Portc::ptr() as *const pac::porta::RegisterBlock) }),
+        3 => Some(unsafe { &*(pac::Portd::ptr() as *const pac::porta::RegisterBlock) }),
+        4 => Some(unsafe { &*(pac::Porte::ptr() as *const pac::porta::RegisterBlock) }),
+        _ => None,
     }
 }
 
 fn pcr_ptr(port: u8, pin: u8) -> *mut u32 {
-    let base = port_base(port);
-    if base == 0 {
-        return core::ptr::null_mut();
+    if let Some(base) = port_regs(port) {
+        (base as *const _ as usize + pin as usize * 4) as *mut u32
+    } else {
+        core::ptr::null_mut()
     }
-    (base + pin as usize * 4) as *mut u32
 }
 
 pub fn set_mux(port: u8, pin: u8, alt: u8) {
@@ -41,10 +49,4 @@ pub fn set_pull(port: u8, pin: u8, pull: Pull) {
             Pull::Up => ptr.write_volatile((val & !(3 << 0)) | (3 << 0)),
         }
     }
-}
-
-pub enum Pull {
-    None,
-    Down,
-    Up,
 }

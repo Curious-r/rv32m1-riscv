@@ -109,54 +109,56 @@ pub enum EndpointDir {
 
 pub struct Usb {
     bdt: &'static mut Bdt,
+    regs: &'static pac::usb0::RegisterBlock,
 }
 
 impl Usb {
     pub fn new(bdt: &'static mut Bdt) -> Self {
-        Self { bdt }
+        let regs = unsafe { &*(pac::Usb0::ptr() as *const pac::usb0::RegisterBlock) };
+        Self { bdt, regs }
     }
 
     pub fn enable(&self, pullup: bool) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.usbtrc0().write(|w| unsafe { w.bits(0) });
-        regs.ctl().write(|w| w.usbensofen().bit(pullup));
+        
+        self.regs.usbtrc0().write(|w| unsafe { w.bits(0) });
+        self.regs.ctl().write(|w| w.usbensofen().bit(pullup));
     }
 
     pub fn disable(&self) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.ctl().modify(|_, w| w.usbensofen().bit(false));
+        
+        self.regs.ctl().modify(|_, w| w.usbensofen().bit(false));
     }
 
     pub fn set_address(&self, addr: u8) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.addr().write(|w| unsafe { w.addr().bits(addr & 0x7F) });
+        
+        self.regs.addr().write(|w| unsafe { w.addr().bits(addr & 0x7F) });
     }
 
     pub fn set_bdt_base(&self, base: u32) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
+        
         let b1 = ((base >> 9) & 0x7F) as u8;
         let b2 = ((base >> 16) & 0xFF) as u8;
         let b3 = ((base >> 24) & 0xFF) as u8;
-        regs.bdtpage1().write(|w| unsafe { w.bdtba().bits(b1) });
-        regs.bdtpage2().write(|w| unsafe { w.bdtba().bits(b2) });
-        regs.bdtpage3().write(|w| unsafe { w.bdtba().bits(b3) });
+        self.regs.bdtpage1().write(|w| unsafe { w.bdtba().bits(b1) });
+        self.regs.bdtpage2().write(|w| unsafe { w.bdtba().bits(b2) });
+        self.regs.bdtpage3().write(|w| unsafe { w.bdtba().bits(b3) });
     }
 
     pub fn bdt_base(&self) -> u32 {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        let b1 = regs.bdtpage1().read().bdtba().bits() as u32;
-        let b2 = regs.bdtpage2().read().bdtba().bits() as u32;
-        let b3 = regs.bdtpage3().read().bdtba().bits() as u32;
+        
+        let b1 = self.regs.bdtpage1().read().bdtba().bits() as u32;
+        let b2 = self.regs.bdtpage2().read().bdtba().bits() as u32;
+        let b3 = self.regs.bdtpage3().read().bdtba().bits() as u32;
         (b3 << 24) | (b2 << 16) | (b1 << 9)
     }
 
     pub fn configure_endpoint(&self, ep: u8, tx_en: bool, rx_en: bool, handshake: bool, ctl_dis: bool) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
+        
         let n = ep as usize;
         if n > 15 {
             return;
         }
-        regs.endpoint(n).endpt().write(|w| {
+        self.regs.endpoint(n).endpt().write(|w| {
             w.eptxen().bit(tx_en);
             w.eprxen().bit(rx_en);
             w.ephshk().bit(handshake);
@@ -166,62 +168,62 @@ impl Usb {
     }
 
     pub fn set_stall(&self, ep: u8, stall: bool) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
+        
         let n = ep as usize;
         if n > 15 {
             return;
         }
-        regs.endpoint(n).endpt().modify(|_, w| w.epstall().bit(stall));
+        self.regs.endpoint(n).endpt().modify(|_, w| w.epstall().bit(stall));
     }
 
     pub fn odd_rst(&self) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.ctl().modify(|_, w| w.oddrst().bit(true));
+        
+        self.regs.ctl().modify(|_, w| w.oddrst().bit(true));
     }
 
     pub fn odd(&self) -> bool {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.stat().read().odd().bit()
+        
+        self.regs.stat().read().odd().bit()
     }
 
     pub fn stat_endp(&self) -> u8 {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.stat().read().endp().bits()
+        
+        self.regs.stat().read().endp().bits()
     }
 
     pub fn stat_tx(&self) -> bool {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.stat().read().tx().bit()
+        
+        self.regs.stat().read().tx().bit()
     }
 
     pub fn interrupt_status(&self) -> u8 {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.istat().read().bits()
+        
+        self.regs.istat().read().bits()
     }
 
     pub fn clear_interrupt(&self, mask: u8) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.istat().write(|w| unsafe { w.bits(mask) });
+        
+        self.regs.istat().write(|w| unsafe { w.bits(mask) });
     }
 
     pub fn enable_interrupts(&self, mask: u8) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.inten().write(|w| unsafe { w.bits(mask) });
+        
+        self.regs.inten().write(|w| unsafe { w.bits(mask) });
     }
 
     pub fn error_status(&self) -> u8 {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.errstat().read().bits()
+        
+        self.regs.errstat().read().bits()
     }
 
     pub fn clear_error(&self, mask: u8) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.errstat().write(|w| unsafe { w.bits(mask) });
+        
+        self.regs.errstat().write(|w| unsafe { w.bits(mask) });
     }
 
     pub fn enable_errors(&self, mask: u8) {
-        let regs = unsafe { &*pac::Usb0::ptr() };
-        regs.erren().write(|w| unsafe { w.bits(mask) });
+        
+        self.regs.erren().write(|w| unsafe { w.bits(mask) });
     }
 
     pub fn bdt_entry_odd(&mut self, ep: u8, dir: EndpointDir) -> &mut BdtEntry {

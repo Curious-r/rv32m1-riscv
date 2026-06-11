@@ -1,56 +1,57 @@
 use crate::pac;
 
-pub struct Sema42 {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SemaStatus {
+    LockedBy(u8),
+    Free,
+}
+
+pub enum Processor {
+    Core0 = 1,
+    Core1 = 2,
+}
+
+pub struct Sema42<const N: usize> {
     regs: &'static pac::sema420::RegisterBlock,
 }
 
-impl Sema42 {
-    pub fn new(_regs: pac::Sema420) -> Self {
-        let regs = unsafe { &*(pac::Sema420::ptr() as *const pac::sema420::RegisterBlock) };
-        Self { regs }
+impl Sema42<0> {
+    pub fn new() -> Self {
+        Self { regs: unsafe { &*(pac::Sema420::ptr() as *const pac::sema420::RegisterBlock) } }
+    }
+}
+
+impl Sema42<1> {
+    pub fn new() -> Self {
+        Self { regs: unsafe { &*(pac::Sema421::ptr() as *const pac::sema420::RegisterBlock) } }
+    }
+}
+
+impl<const N: usize> Sema42<N> {
+    fn gate_reg(&self, gate: u8) -> &pac::sema420::Gate {
+        self.regs.gate(gate as usize)
     }
 
-    pub fn new_sema421(_regs: pac::Sema421) -> Self {
-        let regs = unsafe { &*(pac::Sema421::ptr() as *const pac::sema420::RegisterBlock) };
-        Self { regs }
-    }
-
-    pub fn try_lock(&self, gate: usize, processor: u8) -> bool {
-        if gate >= 16 || processor >= 15 {
-            return false;
+    pub fn status(&self, gate: u8) -> SemaStatus {
+        let val = self.gate_reg(gate).read().gtfsm().bits();
+        match val {
+            0 => SemaStatus::Free,
+            n => SemaStatus::LockedBy(n - 1),
         }
-        let val = processor.wrapping_add(1) & 0x0F;
-        let r = self.regs.gate(gate);
-        r.write(|w| unsafe { w.gtfsm().bits(val) });
-        r.read().gtfsm().bits() == val
     }
 
-    pub fn unlock(&self, gate: usize) {
-        if gate >= 16 {
-            return;
-        }
-        self.regs.gate(gate).write(|w| w.gtfsm().gtfsm_0());
+    pub fn try_lock(&self, gate: u8, proc: Processor) -> bool {
+        let reg = self.gate_reg(gate);
+        let val = proc as u8;
+        reg.write(|w| unsafe { w.gtfsm().bits(val) });
+        reg.read().gtfsm().bits() == val
     }
 
-    pub fn is_locked(&self, gate: usize) -> bool {
-        if gate >= 16 {
-            return false;
-        }
-        self.regs.gate(gate).read().gtfsm().bits() != 0
+    pub fn unlock(&self, gate: u8) {
+        self.gate_reg(gate).write(|w| w.gtfsm().gtfsm_0());
     }
 
-    pub fn locked_by(&self, gate: usize) -> u8 {
-        if gate >= 16 {
-            return 0;
-        }
-        let val = self.regs.gate(gate).read().gtfsm().bits();
-        if val == 0 { 0 } else { val - 1 }
-    }
-
-    pub fn reset_gate(&self, gate: usize) {
-        if gate >= 16 {
-            return;
-        }
-        self.regs.gate(gate).write(|w| w.gtfsm().gtfsm_0());
+    pub fn reset_gate(&self, gate: u8) {
+        self.regs.rstgt_rstgt_w().write(|w| unsafe { w.bits(gate.into()) });
     }
 }

@@ -24,11 +24,14 @@ pub enum TriggerSelect {
     Software = 1,
 }
 
-pub struct Lpdac;
+pub struct Lpdac {
+    regs: &'static pac::lpdac0::RegisterBlock,
+}
 
 impl Lpdac {
     pub fn new() -> Self {
-        Self {}
+        let regs = unsafe { &*(pac::Lpdac0::ptr() as *const pac::lpdac0::RegisterBlock) };
+        Self { regs }
     }
 
     pub fn enable_clock(&self) {
@@ -42,8 +45,7 @@ impl Lpdac {
     }
 
     pub fn configure(&self, dac_en: bool, reference: DacRef, power: PowerMode, mode: DacMode, trigger: TriggerSelect, swing: bool) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.gcr().write(|w| {
+        self.regs.gcr().write(|w| {
             w.dacen().bit(dac_en);
             w.dacrfs().bit(matches!(reference, DacRef::External));
             w.lpen().bit(matches!(power, PowerMode::Low));
@@ -54,23 +56,19 @@ impl Lpdac {
     }
 
     pub fn enable(&self) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.gcr().modify(|_, w| w.dacen().dacen_1());
+        self.regs.gcr().modify(|_, w| w.dacen().dacen_1());
     }
 
     pub fn disable(&self) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.gcr().modify(|_, w| w.dacen().dacen_0());
+        self.regs.gcr().modify(|_, w| w.dacen().dacen_0());
     }
 
     pub fn write(&self, value: u16) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.data().write(|w| unsafe { w.data().bits(value & 0x0FFF) });
+        self.regs.data().write(|w| unsafe { w.data().bits(value & 0x0FFF) });
     }
 
     pub fn trigger(&self) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.tcr().write(|w| w.swtrg().swtrg_1());
+        self.regs.tcr().write(|w| w.swtrg().swtrg_1());
     }
 
     pub fn write_and_trigger(&self, value: u16) {
@@ -79,53 +77,43 @@ impl Lpdac {
     }
 
     pub fn software_reset(&self) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.rcr().write(|w| w.swrst().swrst_1());
+        self.regs.rcr().write(|w| w.swrst().swrst_1());
     }
 
     pub fn fifo_reset(&self) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.rcr().write(|w| w.fiforst().fiforst_1());
+        self.regs.rcr().write(|w| w.fiforst().fiforst_1());
     }
 
     pub fn set_watermark(&self, wml: u8) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fcr().write(|w| unsafe { w.wml().bits(wml & 0x0F) });
+        self.regs.fcr().write(|w| unsafe { w.wml().bits(wml & 0x0F) });
     }
 
     pub fn is_full(&self) -> bool {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fsr().read().full().is_full_1()
+        self.regs.fsr().read().full().is_full_1()
     }
 
     pub fn is_empty(&self) -> bool {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fsr().read().empty().is_empty_1()
+        self.regs.fsr().read().empty().is_empty_1()
     }
 
     pub fn watermark_reached(&self) -> bool {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fsr().read().wm().is_wm_1()
+        self.regs.fsr().read().wm().is_wm_1()
     }
 
     pub fn overflow(&self) -> bool {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fsr().read().of().is_of_1()
+        self.regs.fsr().read().of().is_of_1()
     }
 
     pub fn underflow(&self) -> bool {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fsr().read().uf().is_uf_1()
+        self.regs.fsr().read().uf().is_uf_1()
     }
 
     pub fn clear_errors(&self) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fsr().write(|w| w.of().of_1().uf().uf_1().swbk().swbk_1());
+        self.regs.fsr().write(|w| w.of().of_1().uf().uf_1().swbk().swbk_1());
     }
 
     pub fn enable_interrupts(&self, full: bool, empty: bool, wm: bool, swbk: bool, of: bool, uf: bool) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.ier().write(|w| {
+        self.regs.ier().write(|w| {
             w.full_ie().bit(full);
             w.empty_ie().bit(empty);
             w.wm_ie().bit(wm);
@@ -136,20 +124,17 @@ impl Lpdac {
     }
 
     pub fn enable_dma(&self, empty: bool, wm: bool) {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.der().write(|w| {
+        self.regs.der().write(|w| {
             w.empty_dmaen().bit(empty);
             w.wm_dmaen().bit(wm)
         });
     }
 
     pub fn fifo_read_ptr(&self) -> u8 {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fpr().read().fifo_rpt().bits()
+        self.regs.fpr().read().fifo_rpt().bits()
     }
 
     pub fn fifo_write_ptr(&self) -> u8 {
-        let regs = unsafe { &*pac::Lpdac0::ptr() };
-        regs.fpr().read().fifo_wpt().bits()
+        self.regs.fpr().read().fifo_wpt().bits()
     }
 }

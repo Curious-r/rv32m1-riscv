@@ -37,15 +37,18 @@ impl Default for CrcConfig {
     }
 }
 
-pub struct Crc;
+pub struct Crc {
+    regs: &'static pac::crc::RegisterBlock,
+}
 
 impl Crc {
     pub fn new() -> Self {
-        Self {}
+        let regs = unsafe { &*(pac::Crc::ptr() as *const pac::crc::RegisterBlock) };
+        Self { regs }
     }
 
     pub fn configure(&self, config: &CrcConfig) {
-        let regs = unsafe { &*pac::Crc::ptr() };
+        let regs = self.regs;
 
         regs.gpoly().write(|w| unsafe { w.bits(config.polynomial) });
 
@@ -75,20 +78,17 @@ impl Crc {
     }
 
     pub fn feed_byte(&self, byte: u8) {
-        let regs = unsafe { &*pac::Crc::ptr() };
-        regs.data().write(|w| unsafe { w.ll().bits(byte) });
+        self.regs.data().write(|w| unsafe { w.ll().bits(byte) });
     }
 
     pub fn feed_slice(&self, data: &[u8]) {
-        let regs = unsafe { &*pac::Crc::ptr() };
         for &byte in data {
-            regs.data().write(|w| unsafe { w.ll().bits(byte) });
+            self.regs.data().write(|w| unsafe { w.ll().bits(byte) });
         }
     }
 
     pub fn result(&self) -> u32 {
-        let regs = unsafe { &*pac::Crc::ptr() };
-        regs.data().read().bits()
+        self.regs.data().read().bits()
     }
 
     pub fn crc16_ccitt(&self, data: &[u8]) -> u16 {

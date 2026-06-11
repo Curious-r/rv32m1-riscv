@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 use core::convert::Infallible;
-use embedded_hal::digital::{ErrorType, InputPin, OutputPin};
+use embedded_hal::digital::{ErrorType, InputPin, OutputPin, StatefulOutputPin};
 
 use crate::pac;
 
@@ -71,6 +71,21 @@ impl<const P: u8, const N: u8> OutputPin for Pin<P, N, Output> {
     }
 }
 
+impl<const P: u8, const N: u8> StatefulOutputPin for Pin<P, N, Output> {
+    fn is_set_high(&mut self) -> Result<bool, Self::Error> {
+        Ok(gpio_reg::<P>().pdor().read().pdo().bits() & (1 << N) != 0)
+    }
+
+    fn is_set_low(&mut self) -> Result<bool, Self::Error> {
+        Ok(gpio_reg::<P>().pdor().read().pdo().bits() & (1 << N) == 0)
+    }
+
+    fn toggle(&mut self) -> Result<(), Self::Error> {
+        gpio_reg::<P>().ptor().write(|w| unsafe { w.ptto().bits(1 << N) });
+        Ok(())
+    }
+}
+
 impl<const P: u8, const N: u8> InputPin for Pin<P, N, Input> {
     fn is_high(&mut self) -> Result<bool, Self::Error> {
         Ok(gpio_reg::<P>().pdir().read().bits() & (1 << N) != 0)
@@ -83,11 +98,11 @@ impl<const P: u8, const N: u8> InputPin for Pin<P, N, Input> {
 
 fn gpio_reg<const PORT: u8>() -> &'static pac::gpioa::RegisterBlock {
     match PORT {
-        0 => unsafe { &*(0x4802_0000 as *const pac::gpioa::RegisterBlock) },
-        1 => unsafe { &*(0x4802_0040 as *const pac::gpioa::RegisterBlock) },
-        2 => unsafe { &*(0x4802_0080 as *const pac::gpioa::RegisterBlock) },
-        3 => unsafe { &*(0x4802_00c0 as *const pac::gpioa::RegisterBlock) },
-        4 => unsafe { &*(0x4100_f000 as *const pac::gpioa::RegisterBlock) },
+        0 => unsafe { &*(pac::Gpioa::ptr() as *const pac::gpioa::RegisterBlock) },
+        1 => unsafe { &*(pac::Gpiob::ptr() as *const pac::gpioa::RegisterBlock) },
+        2 => unsafe { &*(pac::Gpioc::ptr() as *const pac::gpioa::RegisterBlock) },
+        3 => unsafe { &*(pac::Gpiod::ptr() as *const pac::gpioa::RegisterBlock) },
+        4 => unsafe { &*(pac::Gpioe::ptr() as *const pac::gpioa::RegisterBlock) },
         _ => unreachable!(),
     }
 }

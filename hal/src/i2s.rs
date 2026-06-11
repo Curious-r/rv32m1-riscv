@@ -30,21 +30,24 @@ pub enum SynchronousMode {
     SyncWithAnotherRx = 3,
 }
 
-pub struct I2s;
+pub struct I2s {
+    regs: &'static pac::i2s0::RegisterBlock,
+}
 
 impl I2s {
     pub fn new() -> Self {
-        Self {}
+        let regs = unsafe { &*(pac::I2s0::ptr() as *const pac::i2s0::RegisterBlock) };
+        Self { regs }
     }
 
     pub fn reset_tx(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.tcsr().write(|w| w.sr().sr_1());
         while regs.tcsr().read().sr().is_sr_0() {}
     }
 
     pub fn reset_rx(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.rcsr().write(|w| w.sr().sr_1());
         while regs.rcsr().read().sr().is_sr_0() {}
     }
@@ -58,7 +61,7 @@ impl I2s {
         mclk: MclkSource,
         sync: SynchronousMode,
     ) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         let bps = word_width as u8 + 1;
         let div_val = {
             let d = clock_hz / (2 * 2 * bps as u32 * sample_rate);
@@ -109,7 +112,7 @@ impl I2s {
         mclk: MclkSource,
         sync: SynchronousMode,
     ) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         let bps = word_width as u8 + 1;
         let div_val = {
             let d = clock_hz / (2 * 2 * bps as u32 * sample_rate);
@@ -151,37 +154,37 @@ impl I2s {
     }
 
     pub fn enable_tx(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.tcsr().modify(|_, w| w.bce().bce_1().te().te_1());
     }
 
     pub fn disable_tx(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.tcsr().modify(|_, w| w.te().te_0().bce().bce_0());
     }
 
     pub fn enable_rx(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.rcsr().modify(|_, w| w.bce().bce_1().re().re_1());
     }
 
     pub fn disable_rx(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.rcsr().modify(|_, w| w.re().re_0().bce().bce_0());
     }
 
     pub fn tx_ready(&self) -> bool {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.tcsr().read().frf().is_frf_1()
     }
 
     pub fn tx_empty(&self) -> bool {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.tcsr().read().fwf().is_fwf_1()
     }
 
     pub fn write_data(&self, data: u32) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         while !self.tx_ready() {}
         regs.tdr(0).write(|w| unsafe { w.tdr().bits(data) });
     }
@@ -193,17 +196,17 @@ impl I2s {
     }
 
     pub fn rx_ready(&self) -> bool {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.rcsr().read().frf().is_frf_1()
     }
 
     pub fn rx_full(&self) -> bool {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.rcsr().read().fwf().is_fwf_1()
     }
 
     pub fn read_data(&self) -> u32 {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         while !self.rx_ready() {}
         regs.rdr(0).read().rdr().bits()
     }
@@ -215,22 +218,22 @@ impl I2s {
     }
 
     pub fn tx_error(&self) -> bool {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.tcsr().read().fef().is_fef_1()
     }
 
     pub fn rx_error(&self) -> bool {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.rcsr().read().fef().is_fef_1()
     }
 
     pub fn clear_tx_errors(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.tcsr().write(|w| w.fef().fef_1().sef().sef_1());
     }
 
     pub fn clear_rx_errors(&self) {
-        let regs = unsafe { &*pac::I2s0::ptr() };
+        let regs = self.regs;
         regs.rcsr().write(|w| w.fef().fef_1().sef().sef_1());
     }
 }
