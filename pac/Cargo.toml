@@ -1,6 +1,6 @@
 [package]
 name = "rv32m1-riscv-pac"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 description = "Peripheral access API for RISC-V (RI5CY + ZERO-RISCY) cores of RV32M1 chips"
 license = "MIT"
