@@ -2,6 +2,9 @@
 
 pub use rv32m1_riscv_pac as pac;
 
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+mod critical_section_impl;
+
 pub mod adc;
 pub mod cau3;
 pub mod crc;
