@@ -17,11 +17,19 @@ impl SpiError for Error {
 }
 
 #[derive(Clone, Copy)]
+pub enum SpiMode {
+    Master,
+    Slave,
+}
+
+#[derive(Clone, Copy)]
 pub struct Config {
     pub frequency: u32,
     pub phase: ClockPhase,
     pub polarity: ClockPolarity,
     pub bit_order: BitOrder,
+    pub mode: SpiMode,
+    pub word_size: u8,
 }
 
 impl Default for Config {
@@ -31,6 +39,18 @@ impl Default for Config {
             phase: ClockPhase::CaptureLeading,
             polarity: ClockPolarity::IdleLow,
             bit_order: BitOrder::MsbFirst,
+            mode: SpiMode::Master,
+            word_size: 8,
+        }
+    }
+}
+
+impl Config {
+    pub fn slave(frequency: u32) -> Self {
+        Self {
+            frequency,
+            mode: SpiMode::Slave,
+            ..Default::default()
         }
     }
 }
@@ -87,25 +107,33 @@ impl Lpspi {
         while regs.cr().read().rst().is_rst_1() {}
         regs.cr().write(|w| w.rst().rst_0());
 
-        let (prescale, sckdiv) = compute_baud(scg::firc_div2_hz(), config.frequency);
+        let is_master = matches!(config.mode, SpiMode::Master);
+        let framesz = (config.word_size as u16).saturating_sub(1).min(0xFFF);
+        let (prescale, sckdiv) = if is_master {
+            compute_baud(scg::firc_div2_hz(), config.frequency)
+        } else {
+            (0, 0)
+        };
 
         regs.cfgr1().write(|w| {
-            w.master().master_1()
+            w.master().bit(is_master)
                 .sample().sample_0()
-                .autopcs().autopcs_0()
+                .autopcs().bit(is_master)
                 .nostall().nostall_0()
         });
 
-        regs.ccr().write(|w| unsafe {
-            w.sckdiv().bits(sckdiv)
-                .dbt().bits(0)
-                .pcssck().bits(0)
-                .sckpcs().bits(0)
-        });
+        if is_master {
+            regs.ccr().write(|w| unsafe {
+                w.sckdiv().bits(sckdiv)
+                    .dbt().bits(0)
+                    .pcssck().bits(0)
+                    .sckpcs().bits(0)
+            });
+        }
 
         regs.tcr().write(|w| {
             use pac::lpspi0::tcr::*;
-            let w = unsafe { w.framesz().bits(7) };
+            let w = unsafe { w.framesz().bits(framesz.into()) };
             w.prescale().variant(match prescale {
                 0 => Prescale::Prescale0,
                 1 => Prescale::Prescale1,
@@ -135,6 +163,13 @@ impl Lpspi {
             .rxmsk().rxmsk_0()
         });
 
+        if !is_master {
+            regs.der().write(|w| {
+                w.tdde().tdde_0()
+                    .rdde().rdde_0()
+            });
+        }
+
         regs.fcr().write(|w| unsafe {
             w.txwater().bits(0)
                 .rxwater().bits(0)
@@ -143,6 +178,22 @@ impl Lpspi {
         regs.cr().write(|w| w.men().men_1());
 
         Self { regs }
+    }
+
+    pub fn enable_interrupts(&self, mask: u32) {
+        self.regs.ier().write(|w| unsafe { w.bits(mask) });
+    }
+
+    pub fn disable_interrupts(&self, mask: u32) {
+        self.regs.ier().modify(|r, w| unsafe { w.bits(r.bits() & !mask) });
+    }
+
+    pub fn get_interrupt_flags(&self) -> u32 {
+        self.regs.sr().read().bits()
+    }
+
+    pub fn clear_interrupt_flags(&self, mask: u32) {
+        self.regs.sr().write(|w| unsafe { w.bits(mask) });
     }
 
     fn wait_tdf(&self) {
