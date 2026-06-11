@@ -1,77 +1,76 @@
-## HAL Modules (37/73 Peripheral Types)
+## HAL Modules (drivers: 40, remaining peripheral types: 33)
 
-| Module | Instance Support | Capabilities Provided |
-|--------|-----------------|-----------------------|
-| **scg** | — | `configure()` switches clock sources (FIRC/SIRC/SOSC/LPFLL); `clock_hz()`/`slow_hz()` are used for peripheral baud rate calculation. |
-| **pcc** | PCC0 + PCC1 | `enable_*_clock()` clock gating functions for M4F (PCC0: porta-d, lpspi0-2, lpi2c0-2, lpuart0-2, tpm0-2, lpit0) and M0+ (PCC1: porte, cau3, trng, lpit1, tpm3, lpi2c3, lpspi3, lpuart3). |
-| **port** | PORTA–E | `set_mux()`/`set_pull()` configure pin function and pull-up/pull-down. PORTE at `0x4103_7000`. |
-| **gpio** | A/B/C/D/E | `Pin<PORT, PIN, MODE>` type-state machine (Input/Output/Alternate); macros generate ports A/B/C/D/E. |
-| **trng** | — | TRNG entropy generator: blocking `read_u32()`/`read_bytes()`/`read_words()`, entropy valid polling, error recovery, Von Neumann sample mode. PCC1 clock gating. |
-| **sema42** | SEMA420 (M4F), SEMA421 (M0+) | 16-gate hardware semaphore: `try_lock(gate, proc)`/`unlock(gate)`/`is_locked()`/`locked_by()`. Pointer-cast from either PAC instance. |
-| **rsim** | — | Radio System Interface: BLE/XCVR/ZIG/GEN clock gating, RF oscillator control, power mode management, radio version ID. |
-| **cau3** | — | CryptoCore + PKHA accelerator: module enable/reset, 7 interrupt sources, 32 GPRs (R0–R31 + SP + LR), semaphore lock, task command interface. PCC1 clock gating. |
-| **lpit** | LPIT0 (PCC0), LPIT1 (PCC1) | Implements `embedded-hal 1.0` `DelayNs` trait (channel 0, one-shot timer). |
-| **lpspi** | LPSPI0–3 (PCC0: 0-2, PCC1: 3) | Implements `embedded-hal 1.0` `SpiBus<u8>` (auto baud rate calculation; AUTOPCS, CPOL, CPHA configurable). |
-| **lpi2c** | LPI2C0–3 (PCC0: 0-2, PCC1: 3) | Implements `embedded-hal 1.0` `I2c<u8>` (automatic START/STOP control; NACK detection). |
-| **lpuart** | LPUART0–3 (PCC0: 0-2, PCC1: 3) | Blocking `putc`/`getc` interface + `core::fmt::Write` trait (auto baud rate calculation using OSR + SBR). |
-| **wdog** | WDOG0, WDOG1 | Hardware watchdog: `new()`/`unlock()`/`refresh()`/`disable()`/`configure()`. |
-| **smc** | SMC0, SMC1 | Power mode awareness: `PowerMode` (RUN/STOP/VLPR/HSRUN), `configure(PMPROT)`, `set_mode(RUNM)`, `reset_cause(SRS)`. SMC1 via static methods. |
-| **crc** | — | Hardware CRC: `CrcConfig` (16/32-bit, polynomial, seed, transpose); convenience methods `crc16_ccitt()`/`crc32()`. |
-| **tpm** | TPM0/1/2 (PCC0), TPM3 (PCC1) | Edge-aligned PWM, input capture, output compare; prescaler 1–128; polarity control. |
-| **adc** | — | Command-buffer architecture: `configure()` (power/reference), `set_channel()` + `trigger_conversion()` + `read_result()`. |
-| **dma** | — | 16-channel eDMA + DMAMUX: `DmaTransferConfig` (address/offset/adjust/size), `memcpy()`, 16-channel TCD. |
-| **ftfe** | — | Flash erase/program: `erase_sector()`/`program_phrase()`/`program_check()`; FCCOB command sequence. |
-| **usdhc** | — | SD card driver: `send_command()` + `read_block()`/`write_block()`; full CMD/RSP/DMA support, 4/8-bit bus. |
-| **usb** | — | USB device controller: BDT architecture, `configure_endpoint()`/`prepare_rx()`/`prepare_tx()`, interrupt/error handling. |
-| **i2s** | — | I2S/SAI audio interface: `configure_tx()`/`configure_rx()` master/slave mode, blocking read/write, configurable frame/word width and clocks. |
-| **lpcmp** | LPCMP0, LPCMP1 | Low-power comparator: `select_inputs()`/`set_hysteresis()`/`set_filter()`/`configure_dac()`, interrupt or polling. |
-| **lpdac** | — | 12-bit DAC: `configure()` buffer/FIFO/return-to-zero mode, `write_and_trigger()`, DMA enable. |
-| **mua** | — | Inter-core communication: 4 channels `send()`/`receive()` (blocking/non-blocking), flag passing, NMI/GP interrupts. |
-| **trgmux** | — | Trigger routing: `set_sel0()`/`set_sel0_locked()` across 25 peripherals, 64 trigger source selections. |
-| **sim** | — | System integration: `unique_id()`/`revision()`/`mac_address()`, Flash/SRAM capacity, FlexBus security level, SysTick clock gating. |
-| **vref** | — | Voltage reference: `enable(mode)`/`disable()`, `set_trim()`, `set_chop()`, compensation/regulator enable, 2.1 V output. |
-| **usbvreg** | — | USB regulator: `enable()`/`disable()`, STOP/VLPR standby modes, unlock sequence. |
-| **llwu** | LLWU0, LLWU1 | Low-leakage wakeup: 32 wakeup pins (rising/falling/either edge), 7 module wakeup sources, 2 digital filters (independent edge/DMA mode), pin/filter flags. |
-| **spm** | — | System power management: `core_power_mode()`/`regulator_sel()`, Core/USB/RTC LDO status, LVD/HVD flags. |
-| **ewm** | — | External watchdog: `enable()`/`configure()`, windowed comparison (CMPL/CMPH), clock prescaler, refresh sequence (0xB4 → 0x4B). |
-| **emvsim** | — | Smart card interface: clock prescaler/divisor, VCC enable/deactivate, card reset/presence detection, blocking byte transmit/receive. |
-| **lptmr** | LPTMR0/1/2 | 16-bit low-power timer: pulse counting, time comparison, periodic interrupt. |
-| **tstmr** | — | Test timer: 56-bit free-running counter, `read()` returns a `u64`, low/high half-words read independently. |
+All drivers use a consistent pointer-based register access pattern: `regs: &'static pac::module::RegisterBlock` initialized in `new()`.
 
-## Development Notes
+| Module | Instance Selection | Capabilities Provided |
+|--------|--------------------|-----------------------|
+| **scg** | `Scg::new()` | `configure()` switches clock sources (FIRC/SIRC/SOSC/LPFLL); `clock_hz()`/`slow_hz()` for peripheral baud rate calculation. |
+| **pcc** | PCC0 + PCC1 | `enable_*_clock()` clock gating for M4F (PCC0) and M0+ (PCC1). |
+| **port** | `set_mux(PORT, PIN, mux)` / `set_pull(PORT, PIN, pull)` | Pin function and pull-up/pull-down (all 5 ports via PAC base addresses). |
+| **gpio** | `Pin<PORT, PIN, MODE>` | Type-state Input/Output/Alternate (ports A–E). Traits: `OutputPin`, `InputPin`, `StatefulOutputPin`, `ErrorType`. |
+| **trng** | `Trng::new()` | Entropy generator: `read_u32()`/`read_bytes()`/`read_words()`, error recovery, Von Neumann mode. |
+| **sema42** | `Sema42::<0>::new()` (M4F), `Sema42::<1>::new()` (M0+) | 16-gate hardware semaphore with `SemaStatus` (LockedBy/Free) and `Processor` types; `try_lock()`, `unlock()`, `status()`, `reset_gate()`. |
+| **rsim** | `Rsim::new()` | BLE/XCVR/ZIG/GEN clock gating, RF oscillator control, radio version ID. |
+| **cau3** | `Cau3::new()` | CryptoCore + PKHA: 32 GPRs, semaphore lock, task command interface. |
+| **lpit** | `Lpit::new_lpit0(pcc0)` / `new_lpit1(pcc1)` | `DelayNs` trait (channel 0, one-shot timer). |
+| **lpspi** | `Lpspi::new_lpspi0–3(pcc, scg, pins)` | `SpiBus<u8>` (auto baud, AUTOPCS, CPOL/CPHA). |
+| **lpi2c** | `Lpi2c::new_lpi2c0–3(pcc, scg, pins)` | `I2c<u8>` (START/STOP control, NACK detection). |
+| **lpuart** | `Lpuart::new_lpuart0–3(pcc, scg, pins)` | Blocking putc/getc + `core::fmt::Write` + `serial::Read`/`Write` (embedded-hal 1.0). Auto baud (OSR + SBR). |
+| **wdog** | `Wdog::new_0()` / `new_1()` | `unlock()`/`refresh()`/`disable()`/`configure()`. |
+| **smc** | `Smc::new_0()` / `new_1()` | `PowerMode`, `configure(PMPROT)`, `set_mode(RUNM)`, `reset_cause(SRS)`. |
+| **crc** | `Crc::new()` | 16/32-bit CRC with configurable polynomial, seed, transpose; `crc16_ccitt()`/`crc32()`. |
+| **tpm** | `Tpm::new(ch, base)` | Edge-aligned PWM, input capture, output compare; prescaler 1–128. `TpmPwmPin<CH>` with `SetDutyCycle`. |
+| **adc** | `Adc::new()` | Command-buffer: `configure()`/`set_channel()`/`trigger_conversion()`/`read_result()`. |
+| **dma** | `Dma::new()` | 16-channel eDMA + DMAMUX: `memcpy()`, TCD entries. |
+| **ftfe** | `Ftfe::new()` | Flash `erase_sector()`/`program_phrase()`/`program_check()`. |
+| **usdhc** | `Usdhc::new()` | SD card CMD/RSP/DMA, 4/8-bit bus. |
+| **usb** | `Usb::new()` | USB device BDT: `configure_endpoint()`/`prepare_rx()`/`prepare_tx()`. |
+| **i2s** | `I2s::new()` | I2S/SAI audio: master/slave, configurable frame/word width. |
+| **lpcmp** | `Lpcmp::new_0()` / `new_1()` | Low-power comparator: `select_inputs()`/`set_hysteresis()`/`set_filter()`/`configure_dac()`. |
+| **lpdac** | `Lpdac::new()` | 12-bit DAC with buffer/FIFO/return-to-zero, `write_and_trigger()`. |
+| **mua** | `Mua::new()` | Inter-core communication: 4 channels `send()`/`receive()` (blocking and non-blocking). |
+| **trgmux** | `Trgmux::new()` | Trigger routing: `set_sel0()` with locked variant, 64 trigger sources. |
+| **sim** | `Sim::new()` | `family_id()`/`subfamily_id()`/`unique_id()`/`mac_address()`. |
+| **vref** | `Vref::new()` | Voltage reference: `enable(mode)`/`set_trim()`/`set_chop()`, 2.1 V output. |
+| **usbvreg** | `Usbvreg::new()` | USB regulator `enable()`/`disable()`, standby modes, unlock. |
+| **llwu** | `Llwu0::new()` / `Llwu1::new()` | 32 wakeup pins, 7 module sources, 2 digital filters. |
+| **spm** | `Spm::new()` | `core_power_mode()`/`regulator_sel()`, LDO status, LVD/HVD. |
+| **ewm** | `Ewm::new()` | External watchdog: windowed CMPL/CMPH, refresh `0xB4 → 0x4B`. |
+| **emvsim** | `Emvsim::new()` | Smart card clock/VCC/card reset/presence, blocking byte I/O. |
+| **lptmr** | `Lptmr::new_0()` / `new_1()` / `new_2()` | 16-bit low-power timer: pulse count, time compare, periodic interrupt. |
+| **tstmr** | `Tstmr::new()` | 56-bit free-running counter: `read() -> u64`. |
 
-### PAC Register Access Pattern
+## Driver Architecture
 
-```rust
-p.scg().rccr().write(|w| unsafe { w.divcore().bits(0).divslow().bits(1).scs().bits(3) });
-p.pcc0().pcc_porta().write(|w| w.cgc().cgc_1());
-```
-
-### GPIO Typical Usage
+All HAL drivers follow the same pattern — an owning `regs` field initialized once from the PAC pointer:
 
 ```rust
-let gpioa = p.gpioa.split();
-let mut led = gpioa.p24.into_output();
-led.set_high().ok();
+pub struct Tpm {
+    regs: &'static pac::tpm0::RegisterBlock,
+}
+
+impl Tpm {
+    pub fn new(ch: TpmInstance) -> Self {
+        let regs = match ch {
+            TpmInstance::Tpm0 => unsafe { &*(pac::Tpm0::ptr() as *const pac::tpm0::RegisterBlock) },
+            // ...
+        };
+        Self { regs }
+    }
+}
 ```
 
-### DMA Typical Usage (Memory Copy)
-
-```rust
-let dma = Dma::new();
-dma.enable();
-let mut buf = [0u8; 64];
-dma.memcpy(buf.as_mut_ptr(), src_ptr, 64);
-```
-
-### Build Commands
+## Build Commands
 
 ```powershell
-cargo build --workspace
-cargo build --release --workspace
+cargo build --workspace                           # Host libraries only
+cargo build -p rv32m1-riscv-board --features rt   # With interrupt vector table
 ```
 
-### Known Issues
+## Development Status
 
-- Several HAL modules (Adc, Crc, Flexio, Ewm, Rtc, etc.) still use unit structs + `unsafe { &*ptr() }` — not yet refactored to the pointer-based pattern used by multi-instance drivers.
-- No `critical-section` implementation is provided yet — global state in TRNG and other modules is unsafe without it.
+- ✅ **Driver refactoring**: All modules converted from unit structs to pointer-based `regs` pattern
+- ✅ **critical-section**: Custom RISC-V single-hart impl (MIE via csrrci/csrsi) — no external dependency
+- ✅ **Embedded HAL traits**: `DelayNs`, `SpiBus<u8>`, `I2c<u8>`, `serial::Read`/`Write`, `SetDutyCycle`, `StatefulOutputPin`
+- ✅ **Edition 2024**: PAC rt feature compiles with `unsafe extern "C"` and `#[unsafe(no_mangle)]`
+- ⬜ **AXBS, FB, MCM, MSCM, XRDC**: Drivers not yet implemented (33 remaining peripheral types)
