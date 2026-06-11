@@ -1,3 +1,4 @@
+PROVIDE(CTI0_MCM0 = DefaultHandler);
 PROVIDE(DMA0 = DefaultHandler);
 PROVIDE(DMA1 = DefaultHandler);
 PROVIDE(DMA2 = DefaultHandler);
@@ -52,5 +53,15 @@ PROVIDE(PORTD = DefaultHandler);
 PROVIDE(ADC0 = DefaultHandler);
 PROVIDE(LPCMP0 = DefaultHandler);
 PROVIDE(LPDAC0 = DefaultHandler);
+PROVIDE(CAU3_Task_Complete = DefaultHandler);
+PROVIDE(CAU3_Security_Violation = DefaultHandler);
+PROVIDE(TRNG = DefaultHandler);
+PROVIDE(LPIT1 = DefaultHandler);
+PROVIDE(LPTMR2 = DefaultHandler);
+PROVIDE(TPM3 = DefaultHandler);
+PROVIDE(LPI2C3 = DefaultHandler);
+PROVIDE(LPSPI3 = DefaultHandler);
+PROVIDE(LPUART3 = DefaultHandler);
 PROVIDE(PORTE = DefaultHandler);
+PROVIDE(LPCMP1 = DefaultHandler);
 
