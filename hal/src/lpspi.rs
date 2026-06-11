@@ -87,7 +87,7 @@ impl Lpspi {
         while regs.cr().read().rst().is_rst_1() {}
         regs.cr().write(|w| w.rst().rst_0());
 
-        let (prescale, sckdiv) = compute_baud(scg::slow_hz(), config.frequency);
+        let (prescale, sckdiv) = compute_baud(scg::firc_div2_hz(), config.frequency);
 
         regs.cfgr1().write(|w| {
             w.master().master_1()

@@ -62,7 +62,7 @@ impl Lpi2c {
 
         regs.mcfgr0().write(|w| w.hren().hren_0());
 
-        let clock_hz = scg::slow_hz();
+        let clock_hz = scg::firc_div2_hz();
         let (prescale, clklo, clkhi) = compute_timing(clock_hz, frequency);
 
         regs.mcfgr1().write(|w| {

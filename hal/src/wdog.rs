@@ -72,7 +72,7 @@ impl Wdog {
 
         let freq = match config.clock {
             ClockSource::Lpo => 1_000,
-            ClockSource::Bus => crate::scg::slow_hz(),
+            ClockSource::Bus => crate::scg::clock_hz(),
             _ => 1_000_000,
         };
 

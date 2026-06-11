@@ -44,13 +44,13 @@ impl Lpuart {
                 .pf().pf_1()
         });
 
-        let clock_hz = scg::slow_hz();
+        let clock_hz = scg::firc_div2_hz();
         let (osr, sbr) = compute_baud(clock_hz, baud_rate);
 
         regs.baud().write(|w| unsafe {
             w.osr().bits(osr)
                 .sbr().bits(sbr)
-                .bothedge().bothedge_0()
+                .bothedge().bit(osr < 7)
                 .resyncdis().resyncdis_0()
                 .sbns().sbns_0()
                 .maen1().maen1_0()
@@ -174,15 +174,27 @@ impl serial::Write<u8> for Lpuart {
 }
 
 fn compute_baud(clock_hz: u32, baud_rate: u32) -> (u8, u16) {
-    for osr in (4..=32).rev() {
-        let divisor = osr as u64 * baud_rate as u64;
-        if divisor > clock_hz as u64 {
+    let mut osr_val = 15u8;
+    let mut sbr_val = 1u16;
+    let mut baud_diff_min = u32::MAX;
+
+    for osr in 4..=32 {
+        let product = (osr as u32) * baud_rate;
+        if product > clock_hz {
             continue;
         }
-        let sbr = (clock_hz as u64 / divisor) as u16;
-        if sbr >= 1 && sbr <= 8191 {
-            return (osr as u8 - 1, sbr);
+        let sbr = (clock_hz + (product / 2)) / product;
+        if sbr < 1 || sbr > 8191 {
+            continue;
+        }
+        let actual = clock_hz / ((osr as u32) * (sbr as u32));
+        let diff = if actual > baud_rate { actual - baud_rate } else { baud_rate - actual };
+        if diff <= baud_diff_min {
+            baud_diff_min = diff;
+            osr_val = osr as u8 - 1;
+            sbr_val = sbr as u16;
         }
     }
-    (3, 1)
+
+    (osr_val, sbr_val)
 }
