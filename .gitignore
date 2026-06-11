@@ -1,5 +1,13 @@
 .pijul
 .DS_Store
 
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# rv32m1-riscv
 target/
 Cargo.lock
