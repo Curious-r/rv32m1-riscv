@@ -1,4 +1,5 @@
 use crate::pac;
+use crate::pcc;
 
 #[derive(Clone, Copy, Debug)]
 pub enum EwmAssertion {
@@ -11,7 +12,8 @@ pub struct Ewm {
 }
 
 impl Ewm {
-    pub fn new() -> Self {
+    pub fn new(pcc0: &pac::Pcc0) -> Self {
+        pcc::enable_ewm_clock(pcc0);
         let regs = unsafe { &*(pac::Ewm::ptr() as *const pac::ewm::RegisterBlock) };
         Self { regs }
     }

@@ -1,4 +1,5 @@
 use crate::pac;
+use crate::pcc;
 
 #[derive(Clone, Copy, Debug)]
 pub enum MuChannel {
@@ -19,19 +20,10 @@ pub struct Mua {
 }
 
 impl Mua {
-    pub fn new() -> Self {
+    pub fn new(pcc0: &pac::Pcc0) -> Self {
+        pcc::enable_mua_clock(pcc0);
         let regs = unsafe { &*(pac::Mua::ptr() as *const pac::mua::RegisterBlock) };
         Self { regs }
-    }
-
-    pub fn enable_clock(&self) {
-        let pcc = unsafe { &*pac::Pcc0::ptr() };
-        pcc.pcc_mua().write(|w| w.cgc().cgc_1());
-    }
-
-    pub fn disable_clock(&self) {
-        let pcc = unsafe { &*pac::Pcc0::ptr() };
-        pcc.pcc_mua().modify(|_, w| w.cgc().cgc_0());
     }
 
     pub fn transmit_ready(&self, ch: MuChannel) -> bool {

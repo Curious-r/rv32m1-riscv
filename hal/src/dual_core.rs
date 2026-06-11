@@ -1,5 +1,6 @@
 use crate::mscm::Mscm;
 use crate::mua::{FlagValue, MuChannel, Mua};
+use crate::pac;
 use crate::sema42::{Processor, Sema42};
 
 pub struct DualCore {
@@ -32,8 +33,8 @@ impl CoreId {
 }
 
 impl DualCore {
-    pub fn new() -> Self {
-        Self { mua: Mua::new(), core_id: CoreId::current() as u8 }
+    pub fn new(pcc0: &pac::Pcc0) -> Self {
+        Self { mua: Mua::new(pcc0), core_id: CoreId::current() as u8 }
     }
 
     pub fn core_id(&self) -> CoreId {

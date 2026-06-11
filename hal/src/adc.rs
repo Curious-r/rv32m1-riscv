@@ -1,4 +1,5 @@
 use crate::pac;
+use crate::pcc;
 
 #[derive(Clone, Copy, Debug)]
 pub enum PowerLevel {
@@ -44,7 +45,8 @@ pub struct Adc {
 }
 
 impl Adc {
-    pub fn new() -> Self {
+    pub fn new(pcc0: &pac::Pcc0) -> Self {
+        pcc::enable_adc0_clock(pcc0);
         let regs = unsafe { &*(pac::Adc0::ptr() as *const pac::adc0::RegisterBlock) };
         Self { regs }
     }

@@ -1,4 +1,5 @@
 use crate::pac;
+use crate::pcc;
 
 #[derive(Clone, Copy, Debug)]
 pub enum DacRef {
@@ -29,19 +30,10 @@ pub struct Lpdac {
 }
 
 impl Lpdac {
-    pub fn new() -> Self {
+    pub fn new(pcc0: &pac::Pcc0) -> Self {
+        pcc::enable_lpdac0_clock(pcc0);
         let regs = unsafe { &*(pac::Lpdac0::ptr() as *const pac::lpdac0::RegisterBlock) };
         Self { regs }
-    }
-
-    pub fn enable_clock(&self) {
-        let regs = unsafe { &*pac::Pcc0::ptr() };
-        regs.pcc_lpdac0().write(|w| w.cgc().cgc_1());
-    }
-
-    pub fn disable_clock(&self) {
-        let regs = unsafe { &*pac::Pcc0::ptr() };
-        regs.pcc_lpdac0().modify(|_, w| w.cgc().cgc_0());
     }
 
     pub fn configure(&self, dac_en: bool, reference: DacRef, power: PowerMode, mode: DacMode, trigger: TriggerSelect, swing: bool) {

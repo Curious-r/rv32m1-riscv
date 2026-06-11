@@ -1,4 +1,5 @@
 use crate::pac;
+use crate::pcc;
 
 #[derive(Clone, Copy, Debug)]
 pub enum CrcWidth {
@@ -42,7 +43,8 @@ pub struct Crc {
 }
 
 impl Crc {
-    pub fn new() -> Self {
+    pub fn new(pcc0: &pac::Pcc0) -> Self {
+        pcc::enable_crc0_clock(pcc0);
         let regs = unsafe { &*(pac::Crc::ptr() as *const pac::crc::RegisterBlock) };
         Self { regs }
     }
