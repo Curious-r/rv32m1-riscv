@@ -6,14 +6,26 @@ use embedded_hal::delay::DelayNs;
 pub use pac::lpit0::Channel;
 
 pub struct Lpit {
-    regs: pac::Lpit0,
+    regs: &'static pac::lpit0::RegisterBlock,
     clock_hz: u32,
 }
 
 impl Lpit {
-    pub fn new(regs: pac::Lpit0, pcc: &pac::Pcc0) -> Self {
-        pcc::enable_lpit0_clock(pcc);
+    pub fn new(_regs: pac::Lpit0, pcc0: &pac::Pcc0) -> Self {
+        pcc::enable_lpit0_clock(pcc0);
         let clock_hz = scg::slow_hz();
+        let regs = unsafe { &*(pac::Lpit0::ptr() as *const pac::lpit0::RegisterBlock) };
+        Self::init(regs, clock_hz)
+    }
+
+    pub fn new_lpit1(_regs: pac::Lpit1, pcc1: &pac::Pcc1) -> Self {
+        pcc::enable_lpit1_clock(pcc1);
+        let clock_hz = scg::slow_hz();
+        let regs = unsafe { &*(pac::Lpit1::ptr() as *const pac::lpit0::RegisterBlock) };
+        Self::init(regs, clock_hz)
+    }
+
+    fn init(regs: &'static pac::lpit0::RegisterBlock, clock_hz: u32) -> Self {
         regs.mcr().write(|w| w.m_cen().m_cen_1());
         let ch = regs.channel(0);
         ch.tctrl().write(|w| w.tsoi().tsoi_1().mode().mode_0());

@@ -27,13 +27,35 @@ impl I2cError for Error {
 }
 
 pub struct Lpi2c {
-    regs: pac::Lpi2c0,
+    regs: &'static pac::lpi2c0::RegisterBlock,
 }
 
 impl Lpi2c {
-    pub fn new(regs: pac::Lpi2c0, pcc: &pac::Pcc0, instance: u8, frequency: u32) -> Self {
-        pcc::enable_lpi2c_clock(pcc, instance);
+    pub fn new(_regs: pac::Lpi2c0, pcc0: &pac::Pcc0, frequency: u32) -> Self {
+        pcc::enable_lpi2c_clock(pcc0, 0);
+        let regs = unsafe { &*(pac::Lpi2c0::ptr() as *const pac::lpi2c0::RegisterBlock) };
+        Self::init(regs, frequency)
+    }
 
+    pub fn new_lpi2c1(_regs: pac::Lpi2c1, pcc0: &pac::Pcc0, frequency: u32) -> Self {
+        pcc::enable_lpi2c_clock(pcc0, 1);
+        let regs = unsafe { &*(pac::Lpi2c1::ptr() as *const pac::lpi2c0::RegisterBlock) };
+        Self::init(regs, frequency)
+    }
+
+    pub fn new_lpi2c2(_regs: pac::Lpi2c2, pcc0: &pac::Pcc0, frequency: u32) -> Self {
+        pcc::enable_lpi2c_clock(pcc0, 2);
+        let regs = unsafe { &*(pac::Lpi2c2::ptr() as *const pac::lpi2c0::RegisterBlock) };
+        Self::init(regs, frequency)
+    }
+
+    pub fn new_lpi2c3(_regs: pac::Lpi2c3, pcc1: &pac::Pcc1, frequency: u32) -> Self {
+        pcc::enable_lpi2c3_clock(pcc1);
+        let regs = unsafe { &*(pac::Lpi2c3::ptr() as *const pac::lpi2c0::RegisterBlock) };
+        Self::init(regs, frequency)
+    }
+
+    fn init(regs: &'static pac::lpi2c0::RegisterBlock, frequency: u32) -> Self {
         regs.mcr().write(|w| w.rst().rst_1().men().men_0());
         while regs.mcr().read().rst().is_rst_1() {}
         regs.mcr().write(|w| w.rst().rst_0());

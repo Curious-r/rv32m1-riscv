@@ -54,13 +54,35 @@ pub enum BitOrder {
 }
 
 pub struct Lpspi {
-    regs: pac::Lpspi0,
+    regs: &'static pac::lpspi0::RegisterBlock,
 }
 
 impl Lpspi {
-    pub fn new(regs: pac::Lpspi0, pcc: &pac::Pcc0, instance: u8, config: Config) -> Self {
-        pcc::enable_lpspi_clock(pcc, instance);
+    pub fn new(_regs: pac::Lpspi0, pcc0: &pac::Pcc0, config: Config) -> Self {
+        pcc::enable_lpspi_clock(pcc0, 0);
+        let regs = unsafe { &*(pac::Lpspi0::ptr() as *const pac::lpspi0::RegisterBlock) };
+        Self::init(regs, config)
+    }
 
+    pub fn new_lpspi1(_regs: pac::Lpspi1, pcc0: &pac::Pcc0, config: Config) -> Self {
+        pcc::enable_lpspi_clock(pcc0, 1);
+        let regs = unsafe { &*(pac::Lpspi1::ptr() as *const pac::lpspi0::RegisterBlock) };
+        Self::init(regs, config)
+    }
+
+    pub fn new_lpspi2(_regs: pac::Lpspi2, pcc0: &pac::Pcc0, config: Config) -> Self {
+        pcc::enable_lpspi_clock(pcc0, 2);
+        let regs = unsafe { &*(pac::Lpspi2::ptr() as *const pac::lpspi0::RegisterBlock) };
+        Self::init(regs, config)
+    }
+
+    pub fn new_lpspi3(_regs: pac::Lpspi3, pcc1: &pac::Pcc1, config: Config) -> Self {
+        pcc::enable_lpspi3_clock(pcc1);
+        let regs = unsafe { &*(pac::Lpspi3::ptr() as *const pac::lpspi0::RegisterBlock) };
+        Self::init(regs, config)
+    }
+
+    fn init(regs: &'static pac::lpspi0::RegisterBlock, config: Config) -> Self {
         regs.cr().write(|w| w.rst().rst_1());
         while regs.cr().read().rst().is_rst_1() {}
         regs.cr().write(|w| w.rst().rst_0());

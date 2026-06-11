@@ -8,8 +8,8 @@ pub struct Lpuart {
 }
 
 impl Lpuart {
-    pub fn new(pcc: &pac::Pcc0, instance: u8, baud_rate: u32) -> Self {
-        pcc::enable_lpuart_clock(pcc, instance);
+    pub fn new(pcc0: &pac::Pcc0, instance: u8, baud_rate: u32) -> Self {
+        pcc::enable_lpuart_clock(pcc0, instance);
 
         let regs = unsafe {
             &*match instance {
@@ -19,6 +19,20 @@ impl Lpuart {
             }
         };
 
+        Self::init(regs, baud_rate)
+    }
+
+    pub fn new_lpuart3(pcc1: &pac::Pcc1, baud_rate: u32) -> Self {
+        pcc::enable_lpuart3_clock(pcc1);
+
+        let regs = unsafe {
+            &*(pac::Lpuart3::ptr() as *const pac::lpuart0::RegisterBlock)
+        };
+
+        Self::init(regs, baud_rate)
+    }
+
+    fn init(regs: &'static pac::lpuart0::RegisterBlock, baud_rate: u32) -> Self {
         regs.ctrl().modify(|_, w| w.te().te_0().re().re_0());
 
         regs.stat().write(|w| {
