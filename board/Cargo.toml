@@ -12,6 +12,7 @@ categories = ["embedded", "hardware-support", "no-std"]
 default = ["vega"]
 vega = []
 rt = ["rv32m1-riscv-chip/rt", "rv32m1-riscv-pac/rt"]
+critical-section = ["rv32m1-riscv-pac/critical-section"]
 
 [dependencies]
 rv32m1-riscv-chip = { path = "../chip", version = "0.1.1" }
