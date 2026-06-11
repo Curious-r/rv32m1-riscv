@@ -3,6 +3,7 @@
 pub use rv32m1_riscv_pac as pac;
 
 pub mod adc;
+pub mod cau3;
 pub mod crc;
 pub mod dma;
 pub mod emvsim;
@@ -23,6 +24,8 @@ pub mod llwu;
 pub mod lpuart;
 pub mod pcc;
 pub mod rtc;
+pub mod rsim;
+pub mod sema42;
 pub mod port;
 pub mod prelude;
 pub mod scg;
@@ -31,6 +34,7 @@ pub mod smc;
 pub mod spm;
 pub mod tpm;
 pub mod trgmux;
+pub mod trng;
 pub mod tstmr;
 pub mod usb;
 pub mod usbvreg;
