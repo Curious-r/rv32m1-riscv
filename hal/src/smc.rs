@@ -31,6 +31,15 @@ impl Smc {
 
     pub fn configure(&self, config: &PowerModeConfig) {
         let regs = unsafe { &*pac::Smc0::ptr() };
+        Self::write_pmprot(regs, config);
+    }
+
+    pub fn configure_smc1(config: &PowerModeConfig) {
+        let regs = unsafe { &*(pac::Smc1::ptr() as *const pac::smc0::RegisterBlock) };
+        Self::write_pmprot(regs, config);
+    }
+
+    fn write_pmprot(regs: &pac::smc0::RegisterBlock, config: &PowerModeConfig) {
         regs.pmprot().write(|w| {
             w.avlls().variant(match config.allow_vlls {
                 VllsLevel::None => pac::smc0::pmprot::Avlls::Avlls0,
@@ -46,6 +55,15 @@ impl Smc {
 
     pub fn set_mode(&self, mode: PowerMode) {
         let regs = unsafe { &*pac::Smc0::ptr() };
+        Self::write_pmctrl(regs, mode);
+    }
+
+    pub fn set_mode_smc1(mode: PowerMode) {
+        let regs = unsafe { &*(pac::Smc1::ptr() as *const pac::smc0::RegisterBlock) };
+        Self::write_pmctrl(regs, mode);
+    }
+
+    fn write_pmctrl(regs: &pac::smc0::RegisterBlock, mode: PowerMode) {
         let runm = match mode {
             PowerMode::Run => pac::smc0::pmctrl::Runm::Runm0,
             PowerMode::Vlpr => pac::smc0::pmctrl::Runm::Runm2,
@@ -58,6 +76,15 @@ impl Smc {
 
     pub fn current_mode(&self) -> PowerMode {
         let regs = unsafe { &*pac::Smc0::ptr() };
+        Self::read_pmstat(regs)
+    }
+
+    pub fn current_mode_smc1() -> PowerMode {
+        let regs = unsafe { &*(pac::Smc1::ptr() as *const pac::smc0::RegisterBlock) };
+        Self::read_pmstat(regs)
+    }
+
+    fn read_pmstat(regs: &pac::smc0::RegisterBlock) -> PowerMode {
         match regs.pmstat().read().pmstat().bits() {
             1 => PowerMode::Run,
             2 => PowerMode::Stop,
@@ -69,6 +96,15 @@ impl Smc {
 
     pub fn reset_cause(&self) -> ResetCause {
         let regs = unsafe { &*pac::Smc0::ptr() };
+        Self::read_srs(regs)
+    }
+
+    pub fn reset_cause_smc1() -> ResetCause {
+        let regs = unsafe { &*(pac::Smc1::ptr() as *const pac::smc0::RegisterBlock) };
+        Self::read_srs(regs)
+    }
+
+    fn read_srs(regs: &pac::smc0::RegisterBlock) -> ResetCause {
         let srs = regs.srs().read();
         ResetCause {
             wakeup: srs.wakeup().bit(),

@@ -44,8 +44,16 @@ pub struct Wdog {
 
 impl Wdog {
     pub fn new(config: Config) -> Self {
-        let regs = unsafe { &*pac::Wdog0::ptr() };
+        let regs = unsafe { &*(pac::Wdog0::ptr() as *const pac::wdog0::RegisterBlock) };
+        Self::init(regs, config)
+    }
 
+    pub fn new_wdog1(config: Config) -> Self {
+        let regs = unsafe { &*(pac::Wdog1::ptr() as *const pac::wdog0::RegisterBlock) };
+        Self::init(regs, config)
+    }
+
+    fn init(regs: &'static pac::wdog0::RegisterBlock, config: Config) -> Self {
         regs.cs().write(|w| {
             w.en().en_0()
                 .update().update_1()

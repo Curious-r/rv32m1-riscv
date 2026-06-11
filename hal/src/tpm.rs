@@ -5,6 +5,7 @@ pub enum TpmInstance {
     Tpm0,
     Tpm1,
     Tpm2,
+    Tpm3,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -49,6 +50,7 @@ impl Tpm {
             TpmInstance::Tpm0 => pac::Tpm0::ptr() as *const tpm0::RegisterBlock,
             TpmInstance::Tpm1 => pac::Tpm1::ptr() as *const tpm0::RegisterBlock,
             TpmInstance::Tpm2 => pac::Tpm2::ptr() as *const tpm0::RegisterBlock,
+            TpmInstance::Tpm3 => pac::Tpm3::ptr() as *const tpm0::RegisterBlock,
         };
         Self {
             regs: unsafe { &*ptr },

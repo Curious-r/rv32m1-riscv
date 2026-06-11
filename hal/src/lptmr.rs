@@ -4,6 +4,7 @@ use crate::pac;
 pub enum LptmrInstance {
     Lptmr0,
     Lptmr1,
+    Lptmr2,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -49,6 +50,7 @@ impl Lptmr {
         let ptr = match instance {
             LptmrInstance::Lptmr0 => pac::Lptmr0::ptr() as *const pac::lptmr0::RegisterBlock,
             LptmrInstance::Lptmr1 => pac::Lptmr1::ptr() as *const pac::lptmr0::RegisterBlock,
+            LptmrInstance::Lptmr2 => pac::Lptmr2::ptr() as *const pac::lptmr0::RegisterBlock,
         };
         Self {
             regs: unsafe { &*ptr },
