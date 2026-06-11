@@ -34,6 +34,67 @@ pub enum BusWidth {
     Bit8 = 2,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum DmaMode {
+    Simple = 0,
+    Adma1 = 1,
+    Adma2 = 2,
+    ExternalDma = 3,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum EndianMode {
+    Big = 0,
+    HalfWordBig = 1,
+    Little = 2,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum BootMode {
+    Normal = 0,
+    Alternative = 1,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct UsdhcConfig {
+    pub data_timeout: u8,
+    pub endian_mode: EndianMode,
+    pub read_watermark: u8,
+    pub write_watermark: u8,
+    pub read_burst_len: u8,
+    pub write_burst_len: u8,
+}
+
+impl Default for UsdhcConfig {
+    fn default() -> Self {
+        Self {
+            data_timeout: 0x0E,
+            endian_mode: EndianMode::Little,
+            read_watermark: 128,
+            write_watermark: 128,
+            read_burst_len: 0,
+            write_burst_len: 0,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Adma2Descriptor {
+    pub attribute: u32,
+    pub address: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct BootConfig {
+    pub ack_timeout: u8,
+    pub boot_mode: BootMode,
+    pub block_count: u16,
+    pub enable_boot_ack: bool,
+    pub enable_boot: bool,
+    pub enable_auto_stop: bool,
+}
+
 pub struct Usdhc {
     regs: &'static pac::usdhc0::RegisterBlock,
 }
@@ -44,10 +105,36 @@ impl Usdhc {
         Self { regs }
     }
 
+    pub fn init(&self, config: &UsdhcConfig) {
+        let r = self.regs;
+        r.prot_ctrl().modify(|_, w| unsafe {
+            w.emode().bits(config.endian_mode as u8 & 3);
+            w.dmasel().bits(0)
+        });
+        r.wtmk_lvl().write(|w| unsafe {
+            w.rd_wml().bits(config.read_watermark);
+            w.wr_wml().bits(config.write_watermark);
+            w.rd_brst_len().bits(config.read_burst_len & 7);
+            w.wr_brst_len().bits(config.write_burst_len & 7)
+        });
+        r.sys_ctrl().modify(|_, w| unsafe {
+            w.dtocv().bits(config.data_timeout & 0x0F)
+        });
+        let all_int = 0x01FF_013F;
+        r.int_status_en().write(|w| unsafe { w.bits(all_int) });
+        r.int_signal_en().write(|w| unsafe { w.bits(0) });
+    }
+
     pub fn reset(&self) {
         let regs = self.regs;
         regs.sys_ctrl().write(|w| w.rsta().rsta_1());
         while regs.sys_ctrl().read().rsta().is_rsta_1() {}
+    }
+
+    pub fn reset_with_mask(&self, mask: u32) {
+        let r = self.regs;
+        r.sys_ctrl().modify(|_, w| unsafe { w.bits(r.sys_ctrl().read().bits() | mask) });
+        while r.sys_ctrl().read().bits() & mask != 0 {}
     }
 
     pub fn set_clock(&self, freq: SdClockFreq, divisor: u8) {
@@ -82,6 +169,26 @@ impl Usdhc {
             w.cccen().bit(crc);
             w.cicen().bit(idx_check);
             w.cmdtyp().bits(0)
+        });
+    }
+
+    pub fn send_command_advanced(&self, index: u8, arg: u32, flags: u32) {
+        let r = self.regs;
+        while r.pres_state().read().cihb().is_cihb_1() {}
+        let mix = r.mix_ctrl().read().bits();
+        r.mix_ctrl().write(|w| unsafe {
+            let m = mix & !0x2F;
+            w.bits(m | (flags & 0x2F))
+        });
+        r.cmd_arg().write(|w| unsafe { w.cmdarg().bits(arg) });
+        r.cmd_xfr_typ().write(|w| unsafe {
+            let t = flags >> 16;
+            w.cmdinx().bits(index);
+            w.rsptyp().bits(((t >> 16) & 3) as u8);
+            w.dpsel().bit((t >> 21) & 1 != 0);
+            w.cccen().bit((t >> 19) & 1 != 0);
+            w.cicen().bit((t >> 20) & 1 != 0);
+            w.cmdtyp().bits(((t >> 22) & 3) as u8)
         });
     }
 
@@ -127,6 +234,16 @@ impl Usdhc {
             w.dmaen().dmaen_0();
             w.ac12en().ac12en_0()
         });
+    }
+
+    pub fn setup_data_advanced(&self, blocks: u16, block_size: u16, flags: u32) {
+        let r = self.regs;
+        r.blk_att().write(|w| unsafe {
+            w.blksize().bits(block_size);
+            w.blkcnt().bits(blocks)
+        });
+        let mix = r.mix_ctrl().read().bits() & !0x2F;
+        r.mix_ctrl().write(|w| unsafe { w.bits(mix | (flags & 0x2F)) });
     }
 
     pub fn write_data(&self, data: u32) {
@@ -190,5 +307,96 @@ impl Usdhc {
             self.write_data(word);
         }
         self.wait_transfer_done()
+    }
+
+    pub fn set_adma_table(&self, desc: &[Adma2Descriptor], _total_bytes: u32) {
+        let r = self.regs;
+        r.ds_addr().write(|w| unsafe { w.bits(0) });
+        for (i, entry) in desc.iter().enumerate() {
+            let attr = if i == desc.len() - 1 {
+                entry.attribute | 3
+            } else {
+                entry.attribute | 1
+            };
+            let addr = desc.as_ptr() as u32 + (i * 8) as u32;
+            unsafe {
+                core::ptr::write_volatile(addr as *mut u32, attr);
+                core::ptr::write_volatile((addr + 4) as *mut u32, entry.address);
+            }
+        }
+        core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
+        r.adma_sys_addr().write(|w| unsafe { w.bits(desc.as_ptr() as u32) });
+        r.prot_ctrl().modify(|_, w| unsafe { w.dmasel().bits(DmaMode::Adma2 as u8) });
+        let mix = r.mix_ctrl().read().bits();
+        r.mix_ctrl().write(|w| unsafe { w.bits(mix | 1) });
+    }
+
+    pub fn set_mmc_boot_config(&self, config: &BootConfig) {
+        let mut v = 0u32;
+        v |= (config.ack_timeout as u32 & 0x0F) << 12;
+        if config.enable_boot_ack {
+            v |= 1 << 11;
+        }
+        v |= (config.boot_mode as u32 & 1) << 9;
+        if config.enable_boot {
+            v |= 1 << 8;
+        }
+        if config.enable_auto_stop {
+            v |= 1 << 10;
+        }
+        v |= (config.block_count as u32) & 0xFFFF;
+        self.regs.mmc_boot().write(|w| unsafe { w.bits(v) });
+    }
+
+    pub fn enable_standard_tuning(&self, start_tap: u8, step: u8, enable: bool) {
+        let r = self.regs;
+        if enable {
+            let mix = r.mix_ctrl().read().bits();
+            r.mix_ctrl().write(|w| unsafe { w.bits(mix | (1 << 23)) });
+            let tuning_ctrl_offset = 0x4C;
+            let addr = r as *const _ as u32 + tuning_ctrl_offset;
+            unsafe {
+                core::ptr::write_volatile(addr as *mut u32,
+                    ((start_tap as u32) << 24) | ((step as u32) << 16) | (1 << 2));
+            }
+            let fevt = r.force_event().read().bits();
+            r.force_event().write(|w| unsafe { w.bits(fevt | ((1 << 24) | (1 << 25))) });
+        } else {
+            let tuning_ctrl_offset = 0x4C;
+            let addr = r as *const _ as u32 + tuning_ctrl_offset;
+            unsafe {
+                let mut t = core::ptr::read_volatile(addr as *const u32);
+                t &= !(1 << 2);
+                core::ptr::write_volatile(addr as *mut u32, t);
+            }
+            let fevt = r.force_event().read().bits();
+            r.force_event().write(|w| unsafe { w.bits(fevt & !((1 << 24) | (1 << 25))) });
+        }
+    }
+
+    pub fn enable_manual_tuning(&self, enable: bool) {
+        let r = self.regs;
+        if enable {
+            let tuning_ctrl_offset = 0x4C;
+            let addr = r as *const _ as u32 + tuning_ctrl_offset;
+            unsafe {
+                let mut t = core::ptr::read_volatile(addr as *const u32);
+                t &= !(1 << 2);
+                core::ptr::write_volatile(addr as *mut u32, t);
+            }
+            let mix = r.mix_ctrl().read().bits();
+            r.mix_ctrl().write(|w| unsafe {
+                w.bits((mix & !(1 << 24)) | (1 << 21) | (1 << 22) | (1 << 23))
+            });
+        } else {
+            let mix = r.mix_ctrl().read().bits();
+            r.mix_ctrl().write(|w| unsafe {
+                w.bits(mix & !((1 << 21) | (1 << 22)))
+            });
+        }
+    }
+
+    pub fn capability(&self) -> u32 {
+        self.regs.host_ctrl_cap().read().bits()
     }
 }
