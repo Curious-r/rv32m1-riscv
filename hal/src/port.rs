@@ -6,47 +6,45 @@ pub enum Pull {
     Up,
 }
 
-fn port_regs(port: u8) -> Option<&'static pac::porta::RegisterBlock> {
+fn port_base(port: u8) -> Option<usize> {
     match port {
-        0 => Some(unsafe { &*(pac::Porta::ptr() as *const pac::porta::RegisterBlock) }),
-        1 => Some(unsafe { &*(pac::Portb::ptr() as *const pac::porta::RegisterBlock) }),
-        2 => Some(unsafe { &*(pac::Portc::ptr() as *const pac::porta::RegisterBlock) }),
-        3 => Some(unsafe { &*(pac::Portd::ptr() as *const pac::porta::RegisterBlock) }),
-        4 => Some(unsafe { &*(pac::Porte::ptr() as *const pac::porta::RegisterBlock) }),
+        0 => Some(pac::Porta::ptr() as usize),
+        1 => Some(pac::Portb::ptr() as usize),
+        2 => Some(pac::Portc::ptr() as usize),
+        3 => Some(pac::Portd::ptr() as usize),
+        4 => Some(pac::Porte::ptr() as usize),
         _ => None,
     }
 }
 
 fn pcr_ptr(port: u8, pin: u8) -> *mut u32 {
-    if let Some(base) = port_regs(port) {
-        (base as *const _ as usize + pin as usize * 4) as *mut u32
-    } else {
-        core::ptr::null_mut()
-    }
+    port_base(port).map_or(core::ptr::null_mut(), |base| {
+        (base + pin as usize * 4) as *mut u32
+    })
+}
+
+fn read_pcr(port: u8, pin: u8) -> u32 {
+    let ptr = pcr_ptr(port, pin);
+    if ptr.is_null() { return 0; }
+    unsafe { ptr.read_volatile() }
+}
+
+fn write_pcr(port: u8, pin: u8, val: u32) {
+    let ptr = pcr_ptr(port, pin);
+    if ptr.is_null() { return; }
+    unsafe { ptr.write_volatile(val); }
 }
 
 pub fn set_mux(port: u8, pin: u8, alt: u8) {
-    let ptr = pcr_ptr(port, pin);
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        let val = ptr.read_volatile();
-        ptr.write_volatile((val & !(7 << 8)) | ((alt as u32) << 8));
-    }
+    let val = read_pcr(port, pin);
+    write_pcr(port, pin, (val & !(7 << 8)) | ((alt as u32) << 8));
 }
 
 pub fn set_pull(port: u8, pin: u8, pull: Pull) {
-    let ptr = pcr_ptr(port, pin);
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        let val = ptr.read_volatile();
-        match pull {
-            Pull::None => ptr.write_volatile(val & !(3 << 0)),
-            Pull::Down => ptr.write_volatile((val & !(3 << 0)) | (1 << 0)),
-            Pull::Up => ptr.write_volatile((val & !(3 << 0)) | (3 << 0)),
-        }
-    }
+    let val = read_pcr(port, pin);
+    write_pcr(port, pin, match pull {
+        Pull::None => val & !(3 << 0),
+        Pull::Down => (val & !(3 << 0)) | (1 << 0),
+        Pull::Up => (val & !(3 << 0)) | (3 << 0),
+    });
 }
