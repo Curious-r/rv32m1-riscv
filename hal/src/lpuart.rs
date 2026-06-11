@@ -5,12 +5,64 @@ use core::fmt;
 use embedded_hal_nb::serial;
 use nb;
 
+#[derive(Clone, Copy, Debug)]
+pub enum WordLen {
+    Bits7 = 0,
+    Bits8 = 1,
+    Bits9 = 2,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Parity {
+    None,
+    Even,
+    Odd,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum StopBits {
+    One,
+    Two,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct UartConfig {
+    pub baud_rate: u32,
+    pub word_len: WordLen,
+    pub parity: Parity,
+    pub stop_bits: StopBits,
+    pub enable_tx: bool,
+    pub enable_rx: bool,
+    pub enable_tx_interrupt: bool,
+    pub enable_rx_interrupt: bool,
+}
+
+impl Default for UartConfig {
+    fn default() -> Self {
+        Self {
+            baud_rate: 115200,
+            word_len: WordLen::Bits8,
+            parity: Parity::None,
+            stop_bits: StopBits::One,
+            enable_tx: true,
+            enable_rx: true,
+            enable_tx_interrupt: false,
+            enable_rx_interrupt: false,
+        }
+    }
+}
+
 pub struct Lpuart {
     regs: &'static pac::lpuart0::RegisterBlock,
 }
 
 impl Lpuart {
     pub fn new(pcc0: &pac::Pcc0, instance: u8, baud_rate: u32) -> Self {
+        let config = UartConfig { baud_rate, ..Default::default() };
+        Self::new_with_config(pcc0, instance, config)
+    }
+
+    pub fn new_with_config(pcc0: &pac::Pcc0, instance: u8, config: UartConfig) -> Self {
         pcc::enable_lpuart_clock(pcc0, instance);
 
         let regs = unsafe {
@@ -21,22 +73,36 @@ impl Lpuart {
             }
         };
 
-        Self::init(regs, baud_rate)
+        Self::init(regs, config)
     }
 
     pub fn new_lpuart3(pcc1: &pac::Pcc1, baud_rate: u32) -> Self {
+        let config = UartConfig { baud_rate, ..Default::default() };
+        Self::new_lpuart3_with_config(pcc1, config)
+    }
+
+    pub fn new_lpuart3_with_config(pcc1: &pac::Pcc1, config: UartConfig) -> Self {
         pcc::enable_lpuart3_clock(pcc1);
 
         let regs = unsafe {
             &*(pac::Lpuart3::ptr() as *const pac::lpuart0::RegisterBlock)
         };
 
-        Self::init(regs, baud_rate)
+        Self::init(regs, config)
     }
 
-    fn init(regs: &'static pac::lpuart0::RegisterBlock, baud_rate: u32) -> Self {
-        regs.ctrl().modify(|_, w| w.te().te_0().re().re_0());
+    pub fn reconfigure(&self, config: UartConfig) {
+        self.regs.ctrl().modify(|_, w| w.te().te_0().re().re_0());
+        Self::write_config(self.regs, config);
+    }
 
+    fn init(regs: &'static pac::lpuart0::RegisterBlock, config: UartConfig) -> Self {
+        regs.ctrl().modify(|_, w| w.te().te_0().re().re_0());
+        Self::write_config(regs, config);
+        Self { regs }
+    }
+
+    fn write_config(regs: &pac::lpuart0::RegisterBlock, config: UartConfig) {
         regs.stat().write(|w| {
             w.fe().fe_1()
                 .nf().nf_1()
@@ -45,7 +111,7 @@ impl Lpuart {
         });
 
         let clock_hz = scg::firc_div2_hz();
-        let (osr, sbr) = compute_baud(clock_hz, baud_rate);
+        let (osr, sbr) = compute_baud(clock_hz, config.baud_rate);
 
         regs.baud().write(|w| unsafe {
             w.osr().bits(osr)
@@ -57,17 +123,29 @@ impl Lpuart {
                 .maen2().maen2_0()
         });
 
-        regs.ctrl().modify(|_, w| {
-            w.m().m_0()
-                .pe().pe_0()
-                .te().te_1()
-                .re().re_1()
-                .tie().tie_0()
-                .rie().rie_0()
-                .sbk().sbk_0()
-        });
+        let m_bits = match config.word_len {
+            WordLen::Bits7 => 0b10u8,
+            WordLen::Bits8 => 0b00,
+            WordLen::Bits9 => 0b01,
+        };
+        let pe = matches!(config.parity, Parity::Even | Parity::Odd);
+        let pt = matches!(config.parity, Parity::Odd);
+        let sbk = match config.stop_bits {
+            StopBits::One => 0,
+            StopBits::Two => 1,
+        };
 
-        Self { regs }
+        regs.ctrl().write(|w| {
+            w.m().bit(m_bits & 1 != 0);
+            w.m7().bit(m_bits & 2 != 0);
+            w.pe().bit(pe);
+            w.pt().bit(pt);
+            w.te().bit(config.enable_tx);
+            w.re().bit(config.enable_rx);
+            w.tie().bit(config.enable_tx_interrupt);
+            w.rie().bit(config.enable_rx_interrupt);
+            w.sbk().bit(sbk != 0)
+        });
     }
 
     pub fn putc(&mut self, c: u8) {
