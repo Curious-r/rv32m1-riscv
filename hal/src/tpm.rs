@@ -120,15 +120,7 @@ impl Tpm {
     }
 
     pub fn clear_channel_flag(&self, channel: usize) {
-        self.regs.status().write(|w| match channel {
-            0 => w.ch0f().bit(true),
-            1 => w.ch1f().bit(true),
-            2 => w.ch2f().bit(true),
-            3 => w.ch3f().bit(true),
-            4 => w.ch4f().bit(true),
-            5 => w.ch5f().bit(true),
-            _ => unreachable!(),
-        });
+        self.regs.status().write(|w| unsafe { w.bits(1 << channel) });
     }
 
     pub fn enable(&self) {
@@ -145,27 +137,15 @@ impl Tpm {
 
     pub fn set_polarity(&self, channel: usize, active_high: bool) {
         let pol = self.regs.pol();
-        if active_high {
-            pol.modify(|_, w| match channel {
-                0 => w.pol0().bit(false),
-                1 => w.pol1().bit(false),
-                2 => w.pol2().bit(false),
-                3 => w.pol3().bit(false),
-                4 => w.pol4().bit(false),
-                5 => w.pol5().bit(false),
-                _ => unreachable!(),
-            });
-        } else {
-            pol.modify(|_, w| match channel {
-                0 => w.pol0().bit(true),
-                1 => w.pol1().bit(true),
-                2 => w.pol2().bit(true),
-                3 => w.pol3().bit(true),
-                4 => w.pol4().bit(true),
-                5 => w.pol5().bit(true),
-                _ => unreachable!(),
-            });
-        }
+        pol.modify(|_, w| match channel {
+            0 => w.pol0().bit(!active_high),
+            1 => w.pol1().bit(!active_high),
+            2 => w.pol2().bit(!active_high),
+            3 => w.pol3().bit(!active_high),
+            4 => w.pol4().bit(!active_high),
+            5 => w.pol5().bit(!active_high),
+            _ => unreachable!(),
+        });
     }
 
     pub fn in_pwm_mode(&self, channel: usize) -> bool {

@@ -72,30 +72,12 @@ impl Lpuart {
 
     pub fn putc(&mut self, c: u8) {
         while !self.regs.stat().read().tdre().is_tdre_1() {}
-        self.regs.data().write(|w| {
-            w.r0t0().bit(c & 1 != 0)
-                .r1t1().bit(c & 2 != 0)
-                .r2t2().bit(c & 4 != 0)
-                .r3t3().bit(c & 8 != 0)
-                .r4t4().bit(c & 16 != 0)
-                .r5t5().bit(c & 32 != 0)
-                .r6t6().bit(c & 64 != 0)
-                .r7t7().bit(c & 128 != 0)
-                .fretsc().fretsc_0()
-        });
+        self.regs.data().write(|w| unsafe { w.bits(c as u32) });
     }
 
     pub fn getc(&mut self) -> u8 {
         while !self.regs.stat().read().rdrf().is_rdrf_1() {}
-        let r = self.regs.data().read();
-        (r.r0t0().bit() as u8) << 0
-            | (r.r1t1().bit() as u8) << 1
-            | (r.r2t2().bit() as u8) << 2
-            | (r.r3t3().bit() as u8) << 3
-            | (r.r4t4().bit() as u8) << 4
-            | (r.r5t5().bit() as u8) << 5
-            | (r.r6t6().bit() as u8) << 6
-            | (r.r7t7().bit() as u8) << 7
+        self.regs.data().read().bits() as u8
     }
 
     pub fn write_slice(&mut self, bytes: &[u8]) {
@@ -129,15 +111,7 @@ impl serial::ErrorType for Lpuart {
 impl serial::Read<u8> for Lpuart {
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
         if self.regs.stat().read().rdrf().is_rdrf_1() {
-            let r = self.regs.data().read();
-            Ok((r.r0t0().bit() as u8) << 0
-                | (r.r1t1().bit() as u8) << 1
-                | (r.r2t2().bit() as u8) << 2
-                | (r.r3t3().bit() as u8) << 3
-                | (r.r4t4().bit() as u8) << 4
-                | (r.r5t5().bit() as u8) << 5
-                | (r.r6t6().bit() as u8) << 6
-                | (r.r7t7().bit() as u8) << 7)
+            Ok(self.regs.data().read().bits() as u8)
         } else {
             Err(nb::Error::WouldBlock)
         }
@@ -147,17 +121,7 @@ impl serial::Read<u8> for Lpuart {
 impl serial::Write<u8> for Lpuart {
     fn write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
         if self.regs.stat().read().tdre().is_tdre_1() {
-            self.regs.data().write(|w| {
-                w.r0t0().bit(word & 1 != 0)
-                    .r1t1().bit(word & 2 != 0)
-                    .r2t2().bit(word & 4 != 0)
-                    .r3t3().bit(word & 8 != 0)
-                    .r4t4().bit(word & 16 != 0)
-                    .r5t5().bit(word & 32 != 0)
-                    .r6t6().bit(word & 64 != 0)
-                    .r7t7().bit(word & 128 != 0)
-                    .fretsc().fretsc_0()
-            });
+            self.regs.data().write(|w| unsafe { w.bits(word as u32) });
             Ok(())
         } else {
             Err(nb::Error::WouldBlock)
